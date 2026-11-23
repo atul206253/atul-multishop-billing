@@ -34,6 +34,10 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 .error{background:#fff0f0;color:#a51d1d;padding:15px;border-radius:9px;margin:15px 0}
 .loading{padding:40px;text-align:center;color:#52637c}
 .note{font-size:12px;color:#718096;margin-top:15px}
+.action-btn{padding:7px 9px;margin:2px;font-size:11px;color:white}
+.activate-btn{background:#168447}
+.deactivate-btn{background:#d18a16}
+.delete-btn{background:#d93636}
 @media(max-width:600px){.container{padding:12px}header{padding:15px}.stat{padding:13px}}
 </style>
 </head>
@@ -74,10 +78,17 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 
     <section class="panel active" id="operators">
       <h3>सभी Users और Operators</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>नाम</th><th>मोबाइल</th><th>प्रकार</th><th>Status</th><th>दुकान</th></tr></thead>
-        <tbody id="operatorsBody"></tbody>
-      </table></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>नाम</th><th>मोबाइल</th><th>प्रकार</th>
+              <th>Status</th><th>दुकान</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="operatorsBody"></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="panel" id="shops">
@@ -120,7 +131,10 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
       </table></div>
     </section>
 
-    <p class="note">यह पैनल Database में मौजूद डेटा दिखाता है। रिपोर्ट दर्ज करना और Operator Suspend/Active करना अगले चरण में जोड़ा जाएगा।</p>
+    <p class="note">
+      Operator का Delete Soft Delete है। पुराने Bills और Customers का रिकॉर्ड सुरक्षित रहेगा।
+      यह पैनल Database में मौजूद डेटा दिखाता है।
+    </p>
   </div>
 </main>
 
@@ -138,7 +152,8 @@ function cell(value) {
 }
 
 function rows(id, html) {
-  $(id).innerHTML = html || `<tr><td colspan="10" class="empty">अभी कोई डेटा उपलब्ध नहीं है।</td></tr>`;
+  $(id).innerHTML = html ||
+    `<tr><td colspan="10" class="empty">अभी कोई डेटा उपलब्ध नहीं है।</td></tr>`;
 }
 
 function showTab(id, button) {
@@ -146,6 +161,37 @@ function showTab(id, button) {
   document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
   $(id).classList.add("active");
   button.classList.add("active");
+}
+
+async function changeOperatorStatus(userId, newStatus) {
+  const messages = {
+    active: "क्या आप इस Operator का अकाउंट फिर से चालू करना चाहते हैं?",
+    suspended: "क्या आप इस Operator का अकाउंट बंद करना चाहते हैं?",
+    deleted: "क्या आप इस Operator को Delete करना चाहते हैं? पुराने Bills सुरक्षित रहेंगे।"
+  };
+
+  if (!confirm(messages[newStatus])) return;
+
+  try {
+    const response = await fetch("/api/admin/operators/status", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({userId, status: newStatus})
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "कार्रवाई सफल नहीं हुई।");
+    }
+
+    alert(result.message);
+    await loadAdmin();
+
+  } catch (error) {
+    alert(error.message || "Server से संपर्क नहीं हो पाया।");
+  }
 }
 
 async function loadAdmin() {
@@ -192,17 +238,51 @@ async function loadAdmin() {
 
     $("totalUsers").textContent = users.length;
     $("totalShops").textContent = shops.length;
-    $("totalOperators").textContent = users.filter(u => Number(u.is_admin) !== 1).length;
+    $("totalOperators").textContent =
+      users.filter(u => Number(u.is_admin) !== 1).length;
     $("totalBills").textContent = bills.length;
     $("totalCustomers").textContent = customers.length;
-    $("totalReports").textContent = reports.filter(r => r.status === "open").length;
+    $("totalReports").textContent =
+      reports.filter(r => r.status === "open").length;
 
     rows("operatorsBody", users.map(u => {
       const membershipsForUser = memberships.filter(m => m.user_id === u.id);
       const shopNames = membershipsForUser.map(m => m.workspace_name).join(", ");
-      return `<tr>${cell(u.name)}${cell(u.mobile)}
+
+      let actions = "";
+
+      if (Number(u.is_admin) !== 1) {
+        if (u.status === "active") {
+          actions = `
+            <button class="action-btn deactivate-btn"
+              onclick="changeOperatorStatus('${safe(u.id)}','suspended')">
+              Deactivate
+            </button>`;
+        } else {
+          actions = `
+            <button class="action-btn activate-btn"
+              onclick="changeOperatorStatus('${safe(u.id)}','active')">
+              Activate
+            </button>`;
+        }
+
+        if (u.status !== "deleted") {
+          actions += `
+            <button class="action-btn delete-btn"
+              onclick="changeOperatorStatus('${safe(u.id)}','deleted')">
+              Delete
+            </button>`;
+        }
+      }
+
+      return `<tr>
+        ${cell(u.name)}
+        ${cell(u.mobile)}
         ${cell(Number(u.is_admin) === 1 ? "Main Admin" : "Operator")}
-        ${cell(u.status)}${cell(shopNames || "-")}</tr>`;
+        ${cell(u.status)}
+        ${cell(shopNames || "-")}
+        <td>${actions || "-"}</td>
+      </tr>`;
     }).join(""));
 
     rows("shopsBody", shops.map(s =>
@@ -240,7 +320,8 @@ async function loadAdmin() {
 
   } catch (error) {
     $("message").className = "error";
-    $("message").textContent = error.message || "Server से संपर्क नहीं हो पाया।";
+    $("message").textContent =
+      error.message || "Server से संपर्क नहीं हो पाया।";
   }
 }
 
@@ -261,4 +342,3 @@ loadAdmin();
 </script>
 </body>
 </html>
-
