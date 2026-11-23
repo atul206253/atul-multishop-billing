@@ -16,11 +16,17 @@ function getCookie(request, name) {
 }
 
 async function sha256(value) {
-  const data = new TextEncoder().encode(value);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value)
+  );
+
+  let binary = "";
+  for (const byte of new Uint8Array(digest)) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary);
 }
 
 export async function onRequestGet({ request, env }) {
