@@ -1,0 +1,53 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Setup</title>
+<style>
+body{font-family:Arial,sans-serif;background:#eef3f9;margin:0;padding:20px}
+.box{max-width:420px;margin:40px auto;background:white;padding:24px;border-radius:14px;box-shadow:0 5px 25px #0001}
+input,button{width:100%;padding:13px;margin:9px 0;box-sizing:border-box;border:1px solid #ccd5e0;border-radius:8px;font-size:16px}
+button{background:#1459a6;color:white;border:0;font-weight:bold;cursor:pointer}
+#result{white-space:pre-wrap;margin-top:15px}
+</style>
+</head>
+<body>
+<div class="box">
+<h2>पहला Admin अकाउंट बनाएं</h2>
+<form id="setupForm">
+<input name="name" value="Atul Kumar" required placeholder="नाम">
+<input name="mobile" value="7248855446" required maxlength="10" placeholder="मोबाइल नंबर">
+<input name="setupSecret" type="password" required placeholder="ADMIN_SETUP_SECRET">
+<input name="password" type="password" required minlength="12" placeholder="नया Admin Password">
+<button type="submit">Admin अकाउंट बनाएं</button>
+</form>
+<div id="result"></div>
+</div>
+<script>
+document.getElementById("setupForm").addEventListener("submit", async function(e){
+  e.preventDefault();
+  const form = e.target;
+  const result = document.getElementById("result");
+  const data = Object.fromEntries(new FormData(form).entries());
+  result.textContent = "कृपया प्रतीक्षा करें...";
+  try {
+    const response = await fetch("/api/admin/setup", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(data)
+    });
+    const answer = await response.json();
+    result.textContent = answer.message || "जवाब प्राप्त हुआ।";
+    if (answer.success) {
+      form.reset();
+      result.textContent += "\nअब इस Setup पेज और Setup API को हटाना जरूरी है।";
+    }
+  } catch(error) {
+    result.textContent = "नेटवर्क समस्या। दोबारा कोशिश करें।";
+  }
+});
+</script>
+</body>
+</html>
