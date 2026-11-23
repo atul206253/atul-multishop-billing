@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atul Jan Seva Kendra Billing</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,"Noto Sans Devanagari",sans-serif;background:#f1f6fc;color:#142d4b}
+button,input,select{font:inherit}
+button{cursor:pointer;border:0;border-radius:7px;padding:10px 13px;font-weight:bold}
+.blue{background:#0865d5;color:white}.green{background:#149447;color:white}
+.red{background:#e63725;color:white}.soft{background:#e8f2ff;color:#0752a5}
+header{background:white;padding:16px 22px;display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;border-bottom:1px solid #d7e2ef}
+.logo{font-size:36px;font-weight:900;color:#06458d;border-right:2px solid #ddd;padding-right:15px}
+.logo small{font-size:10px;display:block;text-align:center}
+.brand{display:flex;align-items:center;gap:15px}
+.brand h1{margin:0;color:#e32c1d;font-size:clamp(22px,3vw,36px)}
+.brand p{margin:4px 0;color:#06458d;font-weight:bold}
+.contact{text-align:center;color:#06458d;font-size:24px;font-weight:bold}
+.contact small{display:block;font-size:14px;margin-top:5px}
+.layout{display:grid;grid-template-columns:220px 1fr;gap:16px;padding:14px}
+nav{background:linear-gradient(#103e79,#082958);border-radius:12px;padding:10px;min-height:80vh}
+nav button{display:block;width:100%;text-align:left;margin:5px 0;background:transparent;color:white;font-size:16px}
+nav button.active,nav button:hover{background:#0874e6}
+main{min-width:0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{color:white;border-radius:12px;padding:16px;min-height:100px;box-shadow:0 3px 12px #0001}
+.stat:nth-child(1){background:#0875e8}.stat:nth-child(2){background:#19a451}
+.stat:nth-child(3){background:#ffae00}.stat:nth-child(4){background:#7a50bd}
+.stat b{display:block}.stat strong{font-size:25px;display:block;margin-top:6px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.panel{background:white;border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 3px 12px #0000000c;border:1px solid #d8e3ef}
+.head{background:#0751a5;color:white;font-size:19px;font-weight:bold;padding:12px}
+.body{padding:13px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+label{font-weight:bold;display:block;margin-bottom:5px}
+input,select{width:100%;padding:9px;border:1px solid #bdcddd;border-radius:6px}
+.section{background:#0751a5;color:white;padding:8px;border-radius:6px;margin:14px 0 8px;font-weight:bold}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #d6e2ee;padding:8px;text-align:left}
+th{background:#edf4fb}
+.tablewrap{overflow-x:auto}
+td input{min-width:70px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.total{display:flex;justify-content:space-between;background:#e5f2ff;border:1px solid #b6d6ff;border-radius:7px;padding:12px;margin-top:12px;font-weight:bold}
+.total strong{font-size:24px}
+.page{display:none}.page.active{display:block}
+.title{color:#0751a5;margin:5px 0 15px}
+.search{max-width:380px;margin-bottom:12px}
+.badge{padding:4px 8px;border-radius:5px;font-size:12px;font-weight:bold}
+.paid{background:#d8f6df;color:#138039}.unpaid{background:#ffe0dc;color:#b32219}
+.support{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.support .panel{padding:16px}
+footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:bold}
+.small{color:#6b7d91;font-size:13px}
+@media(max-width:1000px){.cols{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.layout{grid-template-columns:1fr;padding:8px}nav{min-height:auto;display:flex;overflow:auto}nav button{white-space:nowrap;width:auto;font-size:13px}.fields{grid-template-columns:1fr}.stats{gap:7px}.stat{padding:10px}.stat strong{font-size:20px}.brand h1{font-size:22px}.contact{font-size:18px}.support{grid-template-columns:1fr}}
+/* ग्राहक की रसीद प्रिंट */
+#printReceipt{display:none}
+@media print{
+ body{background:white;color:black}
+ header,nav,footer,.stats,.screenOnly{display:none!important}
+ .layout{display:block;padding:0}
+ main{display:none!important}
+ #printReceipt{display:block!important;padding:10mm;font-size:14px}
+ #printReceipt h1,#printReceipt h2{text-align:center;margin:4px}
+ #printReceipt table{width:100%;border-collapse:collapse;margin-top:15px}
+ #printReceipt th,#printReceipt td{border:1px solid #333;padding:8px;color:#000}
+ #printReceipt .receiptTop{border-bottom:2px solid #111;padding-bottom:10px}
+ #printReceipt .receiptFoot{display:flex;justify-content:space-between;margin-top:35px}
+}
+</style>
+</head>
+<body>
+<header>
+ <div class="brand">
+  <div class="logo">CSC<small>COMMON SERVICE CENTRE</small></div>
+  <div><h1 id="brandName">अतुल जन सेवा केंद्र</h1><p id="brandAddress">अकबरपुर, बसरेहर, इटावा, उत्तर प्रदेश</p></div>
+ </div>
+ <div class="contact">☎ <span id="brandMobile">7248855446</span><small>सभी प्रकार की सरकारी एवं ऑनलाइन सेवाएं</small></div>
+ <b>Welcome<br><span id="brandOwner">Atul Kumar</span></b>
+</header>
+
+<div class="layout">
+<nav class="screenOnly">
+<button class="active" data-page="dashboard">🏠 Dashboard</button>
+<button data-page="history">▤ बिल इतिहास</button>
+<button data-page="customers">👥 ग्राहक सूची</button>
+<button data-page="reports">▥ रिपोर्ट्स</button>
+<button data-page="settings">⚙ सेटिंग्स</button>
+</nav>
+
+<main>
+<section class="page active" id="dashboard">
+<div class="stats">
+<div class="stat"><b>कुल बिल</b><strong id="count">0</strong></div>
+<div class="stat"><b>कुल राशि</b><strong id="sum">₹ 0</strong></div>
+<div class="stat"><b>आज के बिल</b><strong id="todayCount">0</strong></div>
+<div class="stat"><b>आज की राशि</b><strong id="todaySum">₹ 0</strong></div>
+</div>
+<div class="cols">
+<div class="panel">
+<div class="head">✚ नया बिल बनाएं</div>
+<div class="body">
+<div class="fields">
+<div><label>ग्राहक का नाम *</label><input id="customer" placeholder="नाम दर्ज करें"></div>
+<div><label>मोबाइल नंबर</label><input id="mobile" maxlength="10" placeholder="मोबाइल नंबर"></div>
+<div><label>बिल दिनांक</label><input type="date" id="date"></div>
+<div><label>भुगतान माध्यम</label><select id="mode"><option>UPI</option><option>Cash</option><option>Card</option><option>Bank Transfer</option><option>Other</option></select></div>
+<div><label>UTR / Transaction ID</label><input id="utr" placeholder="Reference No."></div>
+<div><label>भुगतान स्थिति</label><select id="status"><option value="Paid">Paid (भुगतान प्राप्त)</option><option value="Unpaid">Unpaid (बकाया)</option></select></div>
+</div>
+<div class="section">🛒 सेवा का विवरण</div>
+<div class="tablewrap"><table><thead><tr><th>क्र.</th><th>सेवा</th><th>राशि ₹</th><th>हटाएं</th></tr></thead><tbody id="services"></tbody></table></div>
+<div class="actions"><button class="green" id="add">＋ सेवा जोड़ें</button><label style="display:flex;align-items:center;gap:7px">अन्य शुल्क ₹ <input id="extra" type="number" value="0" min="0" style="width:100px"></label></div>
+<div class="total"><span>कुल राशि ₹</span><strong id="grand">0</strong></div>
+<div class="actions"><button class="green" id="save">✓ बिल सेव करें व ग्राहक रसीद प्रिंट</button><button class="blue" id="preview">🖨 प्रिंट रसीद</button><button class="soft" id="reset">रीसेट</button></div>
+<p class="small">सेव करने पर बिल हिस्ट्री में दर्ज होगा और ग्राहक की रसीद प्रिंट होगी। प्रिंट विंडो में PDF भी सेव कर सकते हैं।</p>
+</div></div>
+
+<div>
+<div class="panel"><div class="head">◴ हाल के बिल <button class="soft" style="float:right" data-open="history">सभी देखें →</button></div>
+<div class="body" style="padding:0"><div class="tablewrap"><table><thead><tr><th>बिल नंबर</th><th>ग्राहक</th><th>दिनांक</th><th>राशि</th><th>स्थिति</th><th>देखें</th></tr></thead><tbody id="recent"></tbody></table></div></div></div>
+<div class="support">
+<div class="panel"><h3 style="color:green;padding:0 15px">✔ सुरक्षित और विश्वसनीय</h3><p style="padding:0 15px">• बिल ब्राउज़र में सेव होंगे<br>• बिल प्रिंट / PDF करें<br>• भुगतान स्थिति दर्ज करें</p></div>
+<div class="panel"><h3 style="color:#0751a5;padding:0 15px">☎ सहायता संपर्क</h3><h2 style="padding:0 15px;color:#0751a5" id="helpMobile">7248855446</h2><p style="padding:0 15px" id="helpName">Atul Jan Seva Kendra</p></div>
+</div></div>
+</div>
+</section>
+
+<section class="page" id="history">
+<h2 class="title">बिल इतिहास</h2>
+<input class="search" id="searchBill" placeholder="बिल / ग्राहक / मोबाइल खोजें">
+<button class="blue" id="csv">CSV डाउनलोड</button>
+<div class="panel"><div class="tablewrap"><table><thead><tr><th>बिल नंबर</th><th>ग्राहक</th><th>मोबाइल</th><th>दिनांक</th><th>राशि</th><th>स्थिति</th><th>एक्शन</th></tr></thead><tbody id="historyRows"></tbody></table></div></div>
+</section>
+
+<section class="page" id="customers">
+<h2 class="title">ग्राहक सूची</h2><input class="search" id="searchCustomer" placeholder="नाम या मोबाइल खोजें">
+<div class="panel"><div class="tablewrap"><table><thead><tr><th>ग्राहक</th><th>मोबाइल</th><th>बिल संख्या</th><th>कुल राशि</th></tr></thead><tbody id="customerRows"></tbody></table></div></div>
+</section>
+
+<section class="page" id="reports">
+<h2 class="title">रिपोर्ट्स</h2>
+<div class="stats">
+<div class="stat"><b>कुल बिल</b><strong id="rCount">0</strong></div>
+<div class="stat"><b>कुल राशि</b><strong id="rTotal">₹ 0</strong></div>
+<div class="stat"><b>भुगतान प्राप्त</b><strong id="rPaid">₹ 0</strong></div>
+<div class="stat"><b>बकाया</b><strong id="rDue">₹ 0</strong></div>
+</div>
+<div class="panel"><div class="body" id="reportText"></div></div>
+</section>
+
+<section class="page" id="settings">
+<h2 class="title">सेटिंग्स</h2>
+<div class="panel"><div class="head">केंद्र की जानकारी बदलें</div><div class="body">
+<div class="fields">
+<div><label>केंद्र का नाम</label><input id="sName"></div>
+<div><label>मालिक</label><input id="sOwner"></div>
+<div><label>पता</label><input id="sAddress"></div>
+<div><label>मोबाइल</label><input id="sMobile"></div>
+</div>
+<div class="actions"><button class="green" id="saveSettings">सेटिंग सेव करें</button><button class="blue" id="backup">JSON बैकअप डाउनलोड</button><button class="red" id="wipe">सभी बिल हटाएं</button></div>
+<p class="small">यह संस्करण डेटा इसी ब्राउज़र में सेव करता है। ब्राउज़र डेटा हटने पर बिल रिकॉर्ड भी हट सकते हैं। नियमित बैकअप लें। दूसरे कंप्यूटर पर बिल अपने आप नहीं दिखेंगे।</p>
+</div></div>
+</section>
+</main>
+</div>
+<footer><span>CSC – Digital India, Better India</span><span>सुविधा • सरलता • पारदर्शिता</span><span>Powered by CSC</span></footer>
+<div id="printReceipt"></div>
+
+<script>
+const STORAGE="atulkendra_billdata";
+const SETS="atulkendra_settings";
+let bills=JSON.parse(localStorage.getItem(STORAGE)||"[]");
+let settings=Object.assign({name:"अतुल जन सेवा केंद्र",owner:"Atul Kumar",address:"अकबरपुर, बसरेहर, इटावा, उत्तर प्रदेश",mobile:"7248855446"},JSON.parse(localStorage.getItem(SETS)||"{}"));
+const $=id=>document.getElementById(id);
+const today=()=>new Date().toISOString().slice(0,10);
+const fmt=n=>"₹ "+Number(n||0).toLocaleString("en-IN");
+function safe(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function addRow(name="",amount=""){let tr=document.createElement("tr");tr.innerHTML=<td></td><td><input class="sn" placeholder="सेवा का नाम" value="${safe(name)}"></td><td><input class="sa" type="number" min="0" step="0.01" value="${amount}"></td><td><button class="red del">✕</button></td>;$("services").appendChild(tr);renum();calc();}
+function renum(){[...$("services").rows].forEach((r,i)=>r.cells[0].textContent=i+1);}
+function calc(){let t=[...document.querySelectorAll(".sa")].reduce((a,e)=>a+Math.max(0,Number(e.value)||0),0)+Math.max(0,Number($("extra").value)||0);$("grand").textContent=t.toLocaleString("en-IN");return t;}
+function resetForm(){$("customer").value="";$("mobile").value="";$("utr").value="";$("mode").value="UPI";$("status").value="Paid";$("extra").value=0;$("services").innerHTML="";addRow("CSC Service Charge",100);addRow("Other Service",0);$("date").value=today();}
+function makeBill(){let name=$("customer").value.trim();if(!name){alert("ग्राहक का नाम लिखें");$("customer").focus();return null;}let sv=[...$("services").rows].map(r=>({name:r.querySelector(".sn").value.trim(),amount:Math.max(0,Number(r.querySelector(".sa").value)||0)})).filter(x=>x.name);return{id:"AJSC-"+Date.now(),name,mobile:$("mobile").value,date:$("date").value||today(),mode:$("mode").value,utr:$("utr").value,status:$("status").value,services:sv,extra:Number($("extra").value)||0,total:calc()};}
+function saveBill(){let b=makeBill();if(!b)return;bills.unshift(b);persist();render();receipt(b);resetForm();}
+function receipt(b){let rows=b.services.map((s,i)=><tr><td>${i+1}</td><td>${safe(s.name)}</td><td>${fmt(s.amount)}</td></tr>).join("");$("printReceipt").innerHTML=`<div class="receiptTop"><h1>${safe(settings.name)}</h1><h2>${safe(settings.address)}</h2><h2>मोबाइल: ${safe(settings.mobile)}</h2><p style="text-align:center">सभी प्रकार की सरकारी एवं ऑनलाइन सेवाएं</p></div>
+<p><b>बिल नंबर:</b> ${safe(b.id)} <span style="float:right"><b>दिनांक:</b> ${safe(b.date)}</span></p>
+<p><b>ग्राहक:</b> ${safe(b.name)} &nbsp; <b>मोबाइल:</b> ${safe(b.mobile||"-")}</p>
+<table><thead><tr><th>क्र.</th><th>सेवा का नाम</th><th>राशि</th></tr></thead><tbody>${rows}<tr><td colspan="2">अन्य शुल्क</td><td>${fmt(b.extra)}</td></tr><tr><th colspan="2">कुल राशि</th><th>${fmt(b.total)}</th></tr></tbody></table>
+<p><b>भुगतान माध्यम:</b> ${safe(b.mode)} &nbsp; <b>स्थिति:</b> ${safe(b.status)}</p><p><b>UTR:</b> ${safe(b.utr||"-")}</p><div class="receiptFoot"><span>ग्राहक के हस्ताक्षर</span><span>धन्यवाद! पुनः पधारें।<br><b>${safe(settings.owner)}</b></span></div>`;
+window.print();}
+function printExisting(id){let b=bills.find(x=>x.id===id);if(b)receipt(b);}
+function persist(){localStorage.setItem(STORAGE,JSON.stringify(bills));}
+function render(){
+let total=bills.reduce((s,b)=>s+b.total,0),day=bills.filter(b=>b.date===today()),daySum=day.reduce((s,b)=>s+b.total,0);
+$("count").textContent=bills.length;$("sum").textContent=fmt(total);$("todayCount").textContent=day.length;$("todaySum").textContent=fmt(daySum);
+$("recent").innerHTML=bills.slice(0,5).map(b=><tr><td>${safe(b.id)}</td><td>${safe(b.name)}</td><td>${safe(b.date)}</td><td>${fmt(b.total)}</td><td>${badge(b)}</td><td><button class="blue" onclick="printExisting('${b.id}')">देखें</button></td></tr>).join("")||<tr><td colspan="6">अभी बिल नहीं हैं</td></tr>;
+renderHistory();renderCustomers();renderReport();}
+function badge(b){return <span class="badge ${b.status==="Paid"?"paid":"unpaid"}">${safe(b.status)}</span>}
+function renderHistory(){let q=($("searchBill")?.value||"").toLowerCase();let arr=bills.filter(b=>(b.id+" "+b.name+" "+b.mobile).toLowerCase().includes(q));$("historyRows").innerHTML=arr.map(b=><tr><td>${safe(b.id)}</td><td>${safe(b.name)}</td><td>${safe(b.mobile||"-")}</td><td>${safe(b.date)}</td><td>${fmt(b.total)}</td><td>${badge(b)}</td><td><button class="blue" onclick="printExisting('${b.id}')">प्रिंट</button> <button class="red" onclick="delBill('${b.id}')">हटाएं</button></td></tr>).join("")||<tr><td colspan="7">रिकॉर्ड नहीं मिला</td></tr>;}
+function renderCustomers(){let q=($("searchCustomer")?.value||"").toLowerCase(),m={};bills.forEach(b=>{let k=b.mobile||b.name;if(!m[k])m[k]={name:b.name,mobile:b.mobile,count:0,total:0};m[k].count++;m[k].total+=b.total;});$("customerRows").innerHTML=Object.values(m).filter(c=>(c.name+" "+c.mobile).toLowerCase().includes(q)).map(c=><tr><td>${safe(c.name)}</td><td>${safe(c.mobile||"-")}</td><td>${c.count}</td><td>${fmt(c.total)}</td></tr>).join("")||<tr><td colspan="4">ग्राहक नहीं मिले</td></tr>;}
+function renderReport(){let total=bills.reduce((s,b)=>s+b.total,0),paid=bills.filter(b=>b.status==="Paid").reduce((s,b)=>s+b.total,0);$("rCount").textContent=bills.length;$("rTotal").textContent=fmt(total);$("rPaid").textContent=fmt(paid);$("rDue").textContent=fmt(total-paid);$("reportText").textContent=कुल ${bills.length} बिल | कुल बिक्री ${fmt(total)} | प्राप्त भुगतान ${fmt(paid)} | बकाया ${fmt(total-paid)};}
+function delBill(id){if(confirm("यह बिल हटाएं?")){bills=bills.filter(b=>b.id!==id);persist();render();}}
+function openPage(id){document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id===id));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===id));window.scrollTo(0,0);}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>openPage(b.dataset.page));
+document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openPage(b.dataset.open));
+$("add").onclick=()=>addRow();
+$("services").addEventListener("input",e=>{if(e.target.classList.contains("sa"))calc();});
+$("services").addEventListener("click",e=>{if(e.target.classList.contains("del")){e.target.closest("tr").remove();renum();calc();}});
+$("extra").oninput=calc;
+$("save").onclick=saveBill;
+$("preview").onclick=()=>{let b=makeBill();if(b)receipt(b);};
+$("reset").onclick=resetForm;
+$("searchBill").oninput=renderHistory;$("searchCustomer").oninput=renderCustomers;
+$("saveSettings").onclick=()=>{settings={name:$("sName").value.trim(),owner:$("sOwner").value.trim(),address:$("sAddress").value.trim(),mobile:$("sMobile").value.trim()};localStorage.setItem(SETS,JSON.stringify(settings));applySettings();alert("सेटिंग सेव हो गई");};
+function applySettings(){$("brandName").textContent=settings.name;$("brandOwner").textContent=settings.owner;$("brandAddress").textContent=settings.address;$("brandMobile").textContent=settings.mobile;$("helpMobile").textContent=settings.mobile;$("helpName").textContent=settings.name;$("sName").value=settings.name;$("sOwner").value=settings.owner;$("sAddress").value=settings.address;$("sMobile").value=settings.mobile;}
+function download(name,data,type){let a=document.createElement("a"),url=URL.createObjectURL(new Blob([data],{type}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+$("csv").onclick=()=>{let rows=[["Bill No","Customer","Mobile","Date","Amount","Mode","Status","UTR"],...bills.map(b=>[b.id,b.name,b.mobile,b.date,b.total,b.mode,b.status,b.utr])];download("Atul-JSK-Bills.csv","\ufeff"+rows.map(r=>r.map(v=>"${String(v||"").replace(/"/g,'""')}").join(",")).join("\n"),"text/csv");};
+$("backup").onclick=()=>download("Atul-JSK-backup.json",JSON.stringify({settings,bills},null,2),"application/json");
+$("wipe").onclick=()=>{if(confirm("सभी बिल रिकॉर्ड स्थायी रूप से हटाएं?")){bills=[];persist();render();}};
+applySettings();$("date").value=today();addRow("CSC Service Charge",100);addRow("Other Service",0);render();
+</script>
+</body>
+</html>
