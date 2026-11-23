@@ -1,8 +1,11 @@
+
 name = "atul-multishop-billing"
+
 compatibility_date = "2026-11-23"
+
 pages_build_output_dir = "./public"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "atul-multishop-db"
-database_id = "PASTE_D1_DATABASE_ID_HERE"
+database_id = "66451d1d-621a-4294-a312-14cc41bdbe38"
