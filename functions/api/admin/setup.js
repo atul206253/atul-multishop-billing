@@ -236,7 +236,7 @@ export async function onRequestPost(context) {
 
     return json({
       success: false,
-      message: "Admin Setup Error: " + (error?.message || String(error))
+      message: "ERROR: " + String(error?.message || error)
     }, 500);
   }
 }
