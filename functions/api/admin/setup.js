@@ -233,9 +233,10 @@ export async function onRequestPost(context) {
 
   } catch (error) {
     console.error("ADMIN SETUP ERROR:", error);
+
     return json({
       success: false,
-      message: "Admin Setup में समस्या हुई। कृपया Logs चेक करें।"
+      message: "Admin Setup Error: " + (error?.message || String(error))
     }, 500);
   }
 }
