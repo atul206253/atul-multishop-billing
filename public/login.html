@@ -1,0 +1,378 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login & Registration | Atul Billing</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:Arial,"Noto Sans Devanagari",sans-serif;
+  background:linear-gradient(135deg,#101d38,#174b79);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  color:#172b4d;
+}
+.container{
+  width:100%;
+  max-width:460px;
+  background:#fff;
+  border-radius:18px;
+  padding:26px;
+  box-shadow:0 15px 45px #0005;
+}
+.logo{
+  width:65px;height:65px;
+  border-radius:15px;
+  background:#e8f1ff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;margin:0 auto 12px;
+}
+h1{text-align:center;font-size:23px;margin:5px 0}
+.subtitle{text-align:center;color:#718096;font-size:13px;margin-bottom:22px}
+.tabs{display:flex;background:#edf2f7;padding:5px;border-radius:10px;margin-bottom:20px}
+.tabs button{
+  flex:1;border:0;padding:11px;border-radius:8px;
+  background:transparent;font-weight:bold;cursor:pointer;color:#526078
+}
+.tabs button.active{background:#1769c2;color:white}
+.field{margin-bottom:14px}
+label{display:block;font-size:13px;font-weight:bold;margin-bottom:6px}
+input,select{
+  width:100%;padding:12px;border:1px solid #d6deea;
+  border-radius:9px;font-size:15px;outline:none;background:white
+}
+input:focus,select:focus{border-color:#1769c2}
+button.primary{
+  width:100%;padding:13px;border:0;border-radius:9px;
+  background:#1769c2;color:white;font-size:16px;
+  font-weight:bold;cursor:pointer;margin-top:8px
+}
+button:disabled{opacity:.6;cursor:not-allowed}
+.hidden{display:none!important}
+.option{
+  border:1px solid #d6deea;border-radius:10px;
+  padding:12px;margin-bottom:10px;display:flex;
+  gap:10px;align-items:flex-start;cursor:pointer
+}
+.option input{width:auto;margin-top:3px}
+.option strong{display:block;font-size:14px}
+.option small{display:block;color:#718096;margin-top:4px;line-height:1.5}
+.message{
+  display:none;padding:11px;border-radius:8px;
+  font-size:13px;line-height:1.5;margin:12px 0
+}
+.message.show{display:block}
+.message.error{background:#fff0f0;color:#b42318}
+.message.success{background:#e9f9ef;color:#16743b}
+.note{text-align:center;font-size:12px;color:#718096;margin-top:18px}
+.link{text-align:center;margin-top:16px;font-size:13px}
+.link a{color:#1769c2;text-decoration:none;font-weight:bold}
+.password-wrap{position:relative}
+.password-wrap input{padding-right:65px}
+.showpass{
+  position:absolute;right:9px;top:9px;border:0;
+  background:#edf2f7;padding:5px 8px;border-radius:5px;cursor:pointer
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="logo">🏪</div>
+  <h1>Atul Billing System</h1>
+  <div class="subtitle">सुरक्षित Login और Registration</div>
+
+  <div class="tabs">
+    <button type="button" id="loginTab" class="active">Login</button>
+    <button type="button" id="registerTab">Registration</button>
+  </div>
+
+  <div id="message" class="message"></div>
+
+  <!-- LOGIN -->
+  <form id="loginForm">
+    <div class="field">
+      <label>मोबाइल नंबर</label>
+      <input type="tel" id="loginMobile" maxlength="10"
+        inputmode="numeric" placeholder="10 अंकों का मोबाइल नंबर" required>
+    </div>
+
+    <div class="field">
+      <label>पासवर्ड</label>
+      <div class="password-wrap">
+        <input type="password" id="loginPassword"
+          placeholder="अपना पासवर्ड डालें" required>
+        <button type="button" class="showpass"
+          onclick="togglePassword('loginPassword',this)">Show</button>
+      </div>
+    </div>
+
+    <button class="primary" type="submit" id="loginButton">Login करें</button>
+    <div class="link">
+      नया अकाउंट बनाना है?
+      <a href="#" id="openRegister">Registration करें</a>
+    </div>
+  </form>
+
+  <!-- REGISTRATION -->
+  <form id="registerForm" class="hidden">
+    <div class="field">
+      <label>आपका पूरा नाम</label>
+      <input type="text" id="regName" maxlength="80"
+        placeholder="अपना नाम लिखें" required>
+    </div>
+
+    <div class="field">
+      <label>मोबाइल नंबर</label>
+      <input type="tel" id="regMobile" maxlength="10"
+        inputmode="numeric" placeholder="10 अंकों का मोबाइल नंबर" required>
+    </div>
+
+    <div class="field">
+      <label>पासवर्ड बनाएं</label>
+      <div class="password-wrap">
+        <input type="password" id="regPassword" minlength="8"
+          maxlength="128" placeholder="कम से कम 8 अक्षर" required>
+        <button type="button" class="showpass"
+          onclick="togglePassword('regPassword',this)">Show</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>पासवर्ड दोबारा डालें</label>
+      <input type="password" id="confirmPassword"
+        placeholder="पासवर्ड दोबारा लिखें" required>
+    </div>
+
+    <div class="field">
+      <label>आप क्या करना चाहते हैं?</label>
+
+      <label class="option">
+        <input type="radio" name="shopMode" value="join" checked>
+        <span>
+          <strong>Atul Jan Seva Kendra से जुड़ें</strong>
+          <small>आपकी Request Admin के पास जाएगी। Admin की मंजूरी के बाद आप काम कर सकेंगे।</small>
+        </span>
+      </label>
+
+      <label class="option">
+        <input type="radio" name="shopMode" value="new">
+        <span>
+          <strong>अपनी नई दुकान बनाएं</strong>
+          <small>अपनी दुकान का नाम और जानकारी देकर अलग बिजनेस अकाउंट बनाएं।</small>
+        </span>
+      </label>
+    </div>
+
+    <div id="newShopFields" class="hidden">
+      <div class="field">
+        <label>दुकान / बिजनेस का नाम</label>
+        <input type="text" id="shopName" maxlength="100"
+          placeholder="जैसे - मेरी CSC दुकान">
+      </div>
+
+      <div class="field">
+        <label>दुकान का पता</label>
+        <input type="text" id="shopAddress"
+          placeholder="दुकान का पूरा पता">
+      </div>
+
+      <div class="field">
+        <label>दुकान का मोबाइल नंबर</label>
+        <input type="tel" id="shopPhone" maxlength="10"
+          inputmode="numeric" placeholder="मोबाइल नंबर">
+      </div>
+    </div>
+
+    <button class="primary" type="submit" id="registerButton">
+      Registration करें
+    </button>
+
+    <div class="link">
+      पहले से अकाउंट है?
+      <a href="#" id="openLogin">Login करें</a>
+    </div>
+  </form>
+
+  <div class="note">
+    आपका अकाउंट सुरक्षित रखने के लिए पासवर्ड किसी के साथ साझा न करें।
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function showMessage(message,type){
+  const box=$("message");
+  box.textContent=message;
+  box.className="message show "+type;
+}
+
+function clearMessage(){
+  $("message").className="message";
+  $("message").textContent="";
+}
+
+function showLogin(){
+  clearMessage();
+  $("loginForm").classList.remove("hidden");
+  $("registerForm").classList.add("hidden");
+  $("loginTab").classList.add("active");
+  $("registerTab").classList.remove("active");
+}
+
+function showRegister(){
+  clearMessage();
+  $("loginForm").classList.add("hidden");
+  $("registerForm").classList.remove("hidden");
+  $("loginTab").classList.remove("active");
+  $("registerTab").classList.add("active");
+}
+
+$("loginTab").addEventListener("click",showLogin);
+$("registerTab").addEventListener("click",showRegister);
+$("openRegister").addEventListener("click",e=>{
+  e.preventDefault();showRegister();
+});
+$("openLogin").addEventListener("click",e=>{
+  e.preventDefault();showLogin();
+});
+
+function togglePassword(id,button){
+  const field=$(id);
+  if(field.type==="password"){
+    field.type="text";button.textContent="Hide";
+  }else{
+    field.type="password";button.textContent="Show";
+  }
+}
+
+document.querySelectorAll('input[name="shopMode"]').forEach(radio=>{
+  radio.addEventListener("change",()=>{
+    const isNew=document.querySelector('input[name="shopMode"]:checked').value==="new";
+    $("newShopFields").classList.toggle("hidden",!isNew);
+    $("shopName").required=isNew;
+  });
+});
+
+function cleanMobile(value){
+  return String(value||"").replace(/\D/g,"");
+}
+
+async function sendRequest(url,data){
+  const response=await fetch(url,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    credentials:"same-origin",
+    body:JSON.stringify(data)
+  });
+
+  let result;
+  try{result=await response.json();}
+  catch{throw new Error("Server से सही जवाब नहीं मिला।");}
+
+  if(!response.ok || !result.success){
+    throw new Error(result.message||"Request पूरी नहीं हो सकी।");
+  }
+  return result;
+}
+
+// LOGIN
+$("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  clearMessage();
+
+  const mobile=cleanMobile($("loginMobile").value);
+  const password=$("loginPassword").value;
+
+  if(!/^[6-9]\d{9}$/.test(mobile)){
+    showMessage("कृपया सही 10 अंकों का मोबाइल नंबर डालें।","error");
+    return;
+  }
+
+  $("loginButton").disabled=true;
+  $("loginButton").textContent="Login हो रहा है...";
+
+  try{
+    const result=await sendRequest("/api/auth/login",{mobile,password});
+    showMessage(result.message||"Login सफल। Dashboard खोला जा रहा है...","success");
+    setTimeout(()=>{window.location.href="/";},700);
+  }catch(error){
+    showMessage(error.message,"error");
+  }finally{
+    $("loginButton").disabled=false;
+    $("loginButton").textContent="Login करें";
+  }
+});
+
+// REGISTRATION
+$("registerForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  clearMessage();
+
+  const name=$("regName").value.trim();
+  const mobile=cleanMobile($("regMobile").value);
+  const password=$("regPassword").value;
+  const confirm=$("confirmPassword").value;
+  const shopMode=document.querySelector('input[name="shopMode"]:checked').value;
+  const shopName=$("shopName").value.trim();
+  const address=$("shopAddress").value.trim();
+  const shopPhone=cleanMobile($("shopPhone").value);
+
+  if(!/^[6-9]\d{9}$/.test(mobile)){
+    showMessage("सही 10 अंकों का मोबाइल नंबर डालें।","error");return;
+  }
+  if(password.length<8){
+    showMessage("पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।","error");return;
+  }
+  if(password!==confirm){
+    showMessage("दोनों पासवर्ड एक जैसे नहीं हैं।","error");return;
+  }
+  if(shopMode==="new" && shopName.length<2){
+    showMessage("अपनी दुकान का नाम डालें।","error");return;
+  }
+  if(shopMode==="new" && shopPhone && !/^[6-9]\d{9}$/.test(shopPhone)){
+    showMessage("दुकान का मोबाइल नंबर सही डालें।","error");return;
+  }
+
+  const data={name,mobile,password,shopMode};
+  if(shopMode==="new"){
+    data.shopName=shopName;
+    data.address=address;
+    data.shopPhone=shopPhone||mobile;
+  }
+
+  $("registerButton").disabled=true;
+  $("registerButton").textContent="Registration हो रहा है...";
+
+  try{
+    const result=await sendRequest("/api/auth/register",data);
+    showMessage(result.message||"Registration सफल।", "success");
+
+    $("registerForm").reset();
+    $("newShopFields").classList.add("hidden");
+    $("shopName").required=false;
+
+    if(result.status==="active"){
+      setTimeout(()=>{
+        showLogin();
+        $("loginMobile").value=mobile;
+        showMessage("आपका अकाउंट बन गया है। अब अपने मोबाइल और पासवर्ड से Login करें।","success");
+      },1800);
+    }
+  }catch(error){
+    showMessage(error.message,"error");
+  }finally{
+    $("registerButton").disabled=false;
+    $("registerButton").textContent="Registration करें";
+  }
+});
+</script>
+</body>
+</html>
