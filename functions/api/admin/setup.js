@@ -1,39 +1,47 @@
 
-const json = (data, status = 200, headers = {}) => {
+function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-      ...headers
+      "Cache-Control": "no-store"
     }
   });
-};
+}
 
-function normalizeMobile(value) {
-  let mobile = String(value || "").replace(/\D/g, "");
-
-  if (mobile.startsWith("91") && mobile.length === 12) {
-    mobile = mobile.slice(2);
-  }
-
-  return mobile;
+function randomId() {
+  return crypto.randomUUID();
 }
 
 function toBase64(bytes) {
   let binary = "";
-
   for (const byte of bytes) {
     binary += String.fromCharCode(byte);
   }
-
   return btoa(binary);
 }
 
-async function hashPassword(password, salt) {
+function safeSecretMatch(a, b) {
+  const encoder = new TextEncoder();
+  const aa = encoder.encode(String(a || ""));
+  const bb = encoder.encode(String(b || ""));
+
+  let difference = aa.length ^ bb.length;
+  const maxLength = Math.max(aa.length, bb.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    difference |= (aa[i] || 0) ^ (bb[i] || 0);
+  }
+
+  return difference === 0;
+}
+
+async function hashPassword(password, saltBytes) {
+  const encoder = new TextEncoder();
+
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(password),
+    encoder.encode(password),
     "PBKDF2",
     false,
     ["deriveBits"]
@@ -42,7 +50,7 @@ async function hashPassword(password, salt) {
   const bits = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
-      salt: salt,
+      salt: saltBytes,
       iterations: 150000,
       hash: "SHA-256"
     },
@@ -53,51 +61,36 @@ async function hashPassword(password, salt) {
   return toBase64(new Uint8Array(bits));
 }
 
-function safeSecretMatch(input, actual) {
-  const encoder = new TextEncoder();
-  const a = encoder.encode(input);
-  const b = encoder.encode(actual);
-
-  if (a.length !== b.length) return false;
-
-  let result = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    result |= a[i] ^ b[i];
-  }
-
-  return result === 0;
-}
-
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(context) {
   try {
-    // Check request origin
-    const origin = request.headers.get("Origin");
+    const { request, env } = context;
 
-    if (!origin || origin !== new URL(request.url).origin) {
+    // केवल same-origin request स्वीकार करें
+    const origin = request.headers.get("Origin");
+    const requestOrigin = new URL(request.url).origin;
+
+    if (!origin || origin !== requestOrigin) {
       return json({
         success: false,
-        message: "Invalid request origin."
+        message: "अनुमति नहीं है।"
       }, 403);
     }
 
-    // Check database
+    // Database binding जाँचें
     if (!env.DB) {
-      console.error("ADMIN SETUP: DB binding missing");
-
+      console.error("ADMIN SETUP ERROR: DB binding missing");
       return json({
         success: false,
-        message: "Database connection नहीं मिला।"
+        message: "Database connection उपलब्ध नहीं है।"
       }, 500);
     }
 
-    // Check secret
+    // Setup secret जाँचें
     if (!env.ADMIN_SETUP_SECRET) {
-      console.error("ADMIN SETUP: Secret missing");
-
+      console.error("ADMIN SETUP ERROR: ADMIN_SETUP_SECRET missing");
       return json({
         success: false,
-        message: "ADMIN_SETUP_SECRET उपलब्ध नहीं है।"
+        message: "Cloudflare में ADMIN_SETUP_SECRET सेट नहीं है।"
       }, 500);
     }
 
@@ -108,123 +101,137 @@ export async function onRequestPost({ request, env }) {
     } catch {
       return json({
         success: false,
-        message: "Invalid JSON data."
+        message: "गलत JSON डेटा भेजा गया है।"
       }, 400);
     }
 
-    const setupSecret = String(body.setupSecret || "");
     const name = String(body.name || "").trim();
-    const mobile = normalizeMobile(body.mobile);
+    const mobile = String(body.mobile || "").replace(/\D/g, "");
     const password = String(body.password || "");
+    const setupSecret = String(body.setupSecret || "");
 
-    // Verify setup secret
     if (!safeSecretMatch(setupSecret, env.ADMIN_SETUP_SECRET)) {
       return json({
         success: false,
         message: "Setup Secret गलत है।"
-      }, 403);
+      }, 401);
     }
 
-    // Validate name
     if (name.length < 2 || name.length > 80) {
       return json({
         success: false,
-        message: "नाम 2 से 80 अक्षरों का होना चाहिए।"
+        message: "नाम सही तरीके से भरें।"
       }, 400);
     }
 
-    // Validate mobile
     if (!/^[6-9]\d{9}$/.test(mobile)) {
       return json({
         success: false,
-        message: "सही 10 अंकों का मोबाइल नंबर डालें।"
+        message: "10 अंकों का सही मोबाइल नंबर भरें।"
       }, 400);
     }
 
-    // Validate password
-    if (password.length < 12 || password.length > 128) {
+    if (password.length < 8 || password.length > 128) {
       return json({
         success: false,
-        message: "Admin Password 12 से 128 अक्षरों का होना चाहिए।"
+        message: "Admin Password कम से कम 8 और अधिकतम 128 अक्षरों का होना चाहिए।"
       }, 400);
     }
 
-    // Check whether an Admin already exists
-    const existingAdmin = await env.DB.prepare(`
-      SELECT id
-      FROM users
-      WHERE is_admin = 1
-      LIMIT 1
-    `).first();
+    // पहले से Admin मौजूद है या नहीं
+    const existingAdmin = await env.DB
+      .prepare("SELECT id FROM users WHERE is_admin = 1 LIMIT 1")
+      .first();
 
     if (existingAdmin) {
       return json({
         success: false,
-        message: "Admin अकाउंट पहले से बना हुआ है।"
+        message: "Admin Account पहले से बना हुआ है।"
       }, 409);
     }
 
-    // Check whether mobile is already registered
-    const existingUser = await env.DB.prepare(`
-      SELECT id
-      FROM users
-      WHERE mobile = ?
-      LIMIT 1
-    `).bind(mobile).first();
+    // मोबाइल नंबर पहले से मौजूद है या नहीं
+    const existingUser = await env.DB
+      .prepare("SELECT id FROM users WHERE mobile = ? LIMIT 1")
+      .bind(mobile)
+      .first();
 
     if (existingUser) {
       return json({
         success: false,
-        message: "यह मोबाइल नंबर पहले से Registered है।"
+        message: "यह मोबाइल नंबर पहले से रजिस्टर है।"
       }, 409);
     }
 
-    // Generate secure password hash
-    const salt = crypto.getRandomValues(new Uint8Array(16));
+    // Atul Jan Seva Kendra workspace मौजूद है या नहीं
+    const workspace = await env.DB
+      .prepare(
+        "SELECT id FROM workspaces WHERE id = ? LIMIT 1"
+      )
+      .bind("atul-default-workspace")
+      .first();
 
-    const passwordHash = await hashPassword(password, salt);
-
-    const userId = crypto.randomUUID();
-    const saltBase64 = toBase64(salt);
-
-    // Create first Admin
-    const result = await env.DB.prepare(`
-      INSERT INTO users
-        (
-          id,
-          name,
-          mobile,
-          password_hash,
-          password_salt,
-          status,
-          is_admin
-        )
-      VALUES (?, ?, ?, ?, ?, 'active', 1)
-    `).bind(
-      userId,
-      name,
-      mobile,
-      passwordHash,
-      saltBase64
-    ).run();
-
-    if (!result.success) {
-      throw new Error("Admin database insert failed");
+    if (!workspace) {
+      console.error("ADMIN SETUP ERROR: Atul workspace not found");
+      return json({
+        success: false,
+        message: "Atul Jan Seva Kendra Workspace नहीं मिला।"
+      }, 500);
     }
 
-    console.log("ADMIN SETUP: First admin created successfully");
+    // Password hash तैयार करें
+    const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+    const passwordSalt = toBase64(saltBytes);
+    const passwordHash = await hashPassword(password, saltBytes);
+
+    const userId = randomId();
+    const membershipId = randomId();
+
+    // Admin User और Workspace Membership एक batch में बनाएं
+    const results = await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO users
+          (id, name, mobile, password_hash, password_salt, status, is_admin)
+        VALUES
+          (?, ?, ?, ?, ?, 'active', 1)
+      `).bind(
+        userId,
+        name,
+        mobile,
+        passwordHash,
+        passwordSalt
+      ),
+
+      env.DB.prepare(`
+        INSERT INTO workspace_memberships
+          (id, workspace_id, user_id, role, status, created_at)
+        VALUES
+          (?, ?, ?, 'owner', 'active', CURRENT_TIMESTAMP)
+      `).bind(
+        membershipId,
+        "atul-default-workspace",
+        userId
+      ),
+
+      env.DB.prepare(`
+        UPDATE workspaces
+        SET owner_user_id = ?
+        WHERE id = ?
+          AND owner_user_id IS NULL
+      `).bind(
+        userId,
+        "atul-default-workspace"
+      )
+    ]);
+
+    console.log("ADMIN SETUP SUCCESS:", userId);
 
     return json({
       success: true,
-      message: "पहला Admin अकाउंट सफलतापूर्वक बन गया।",
-      admin: {
-        name: name,
-        mobile: mobile
-      }
-    }, 201);
+      message: "Admin Account सफलतापूर्वक बन गया है। अब Login कर सकते हैं।"
+    });
 
   } catch (error) {
-    // Detailed error only in Cloudflare Logs
     console.error("ADMIN SETUP ERROR:", error);
 
     return json({
