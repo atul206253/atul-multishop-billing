@@ -63,7 +63,15 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
 #loading,#pending,#authError{max-width:600px;margin:60px auto;padding:25px;background:white;border-radius:12px;text-align:center;box-shadow:0 3px 15px #0001}
 #app{display:none}
 #printReceipt{display:none}
-@media(max-width:1000px){.cols{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+.paymentType{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.paymentType button{flex:1;min-width:140px;padding:13px}
+.paymentType button.active{background:#0751a5;color:white}
+.paymentSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+.paymentSummary .stat{min-height:85px;padding:13px}
+.paymentSummary .stat strong{font-size:21px}
+.paymentHidden{display:none!important}
+.statusSelect{min-width:145px}
+@media(max-width:1000px){.cols{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.paymentSummary{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){
  .layout{grid-template-columns:1fr;padding:8px}
  nav{min-height:auto;display:flex;overflow:auto}
@@ -73,6 +81,9 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
  .brand h1{font-size:21px}.contact{font-size:17px}
  .support{grid-template-columns:1fr}
  header{padding:12px}
+ .paymentSummary{gap:7px}
+ .paymentSummary .stat{padding:10px}
+ .paymentSummary .stat strong{font-size:18px}
 }
 @media print{
  body{background:white;color:black}
@@ -136,6 +147,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
  <button data-page="history">▤ बिल इतिहास</button>
  <button data-page="customers">👥 ग्राहक सूची</button>
  <button data-page="reports">▥ रिपोर्ट्स</button>
+ <button data-page="payments">💰 Payment Register</button>
  <button data-page="settings">⚙ सेटिंग्स</button>
  <a class="help-link" href="https://wa.me/917248855446?text=Namaste%2C%20mujhe%20Billing%20Portal%20ke%20sambandh%20mein%20madad%20chahiye." target="_blank" rel="noopener noreferrer">💬 Help / सहायता</a>
 </nav>
@@ -295,6 +307,210 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
  </div>
 </section>
 
+<!-- नया Payment Register पेज -->
+<section class="page" id="payments">
+ <h2 class="title">💰 Payment Register — पैसा प्राप्त / पैसा भेजा</h2>
+
+ <div class="paymentSummary">
+  <div class="stat" style="background:#0875e8">
+   <b>कुल प्राप्त राशि</b><strong id="pReceived">₹ 0</strong>
+  </div>
+  <div class="stat" style="background:#19a451">
+   <b>कुल भेजी गई राशि</b><strong id="pSent">₹ 0</strong>
+  </div>
+  <div class="stat" style="background:#ffae00">
+   <b>Pending Settlement</b><strong id="pPending">₹ 0</strong>
+  </div>
+  <div class="stat" style="background:#7a50bd">
+   <b>कुल लेन-देन</b><strong id="pCount">0</strong>
+  </div>
+ </div>
+
+ <div class="panel">
+  <div class="head">✚ नया लेन-देन दर्ज करें</div>
+  <div class="body">
+
+   <div class="paymentType">
+    <button type="button" class="active" id="receivedTypeBtn">⬇ पैसा प्राप्त हुआ</button>
+    <button type="button" class="soft" id="sentTypeBtn">⬆ पैसा भेजा गया</button>
+   </div>
+
+   <input type="hidden" id="transactionType" value="received">
+
+   <div class="fields">
+    <div>
+     <label>लेन-देन की तारीख और समय *</label>
+     <input type="datetime-local" id="paymentDate">
+    </div>
+
+    <div>
+     <label>राशि ₹ *</label>
+     <input type="number" id="paymentAmount" min="0.01" step="0.01" placeholder="राशि दर्ज करें">
+    </div>
+
+    <div>
+     <label>Payment Mode *</label>
+     <select id="paymentMode">
+      <option value="Paytm QR">Paytm QR</option>
+      <option value="UPI QR">अन्य UPI QR</option>
+      <option value="UPI ID">UPI ID पर भुगतान</option>
+      <option value="Mobile Number">मोबाइल नंबर पर UPI</option>
+      <option value="Cash">Cash (नकद)</option>
+      <option value="Bank Transfer">Bank Transfer</option>
+      <option value="Card">Card</option>
+      <option value="Other">Other</option>
+     </select>
+    </div>
+
+    <div>
+     <label>UTR / Transaction ID</label>
+     <input id="paymentUtr" placeholder="UTR / Transaction Reference">
+    </div>
+   </div>
+
+   <div id="receivedFields">
+    <div class="section">⬇ ग्राहक से पैसा प्राप्त होने की जानकारी</div>
+    <div class="fields">
+     <div>
+      <label>ग्राहक का नाम *</label>
+      <input id="paymentCustomer" placeholder="ग्राहक का नाम">
+     </div>
+     <div>
+      <label>ग्राहक का मोबाइल</label>
+      <input id="paymentCustomerMobile" maxlength="15" inputmode="numeric" placeholder="मोबाइल नंबर">
+     </div>
+     <div>
+      <label>ग्राहक की लोकेशन</label>
+      <input id="paymentCustomerLocation" placeholder="जैसे Delhi, Etawah">
+     </div>
+     <div>
+      <label>पैसा किसने लिया?</label>
+      <input id="paymentReceivedBy" placeholder="जैसे Atul / परिवार का सदस्य">
+     </div>
+     <div>
+      <label>पैसा किसके पास गया?</label>
+      <select id="paymentWentTo">
+       <option value="दुकान">दुकान</option>
+       <option value="घर">घर</option>
+       <option value="ऑपरेटर">ऑपरेटर</option>
+       <option value="परिवार का सदस्य">परिवार का सदस्य</option>
+       <option value="अन्य">अन्य</option>
+      </select>
+     </div>
+     <div>
+      <label>Settlement Status</label>
+      <select id="paymentSettlement">
+       <option value="Pending">Pending</option>
+       <option value="Received by Family">Received by Family</option>
+       <option value="Transferred to Shop">Transferred to Shop</option>
+       <option value="Settled">Settled</option>
+      </select>
+     </div>
+     <div style="grid-column:1/-1">
+      <label>Settlement की जानकारी / टिप्पणी</label>
+      <input id="paymentSettlementNote" placeholder="जैसे पैसा घर पर प्राप्त हुआ या दुकान में जमा किया">
+     </div>
+    </div>
+   </div>
+
+   <div id="sentFields" class="paymentHidden">
+    <div class="section">⬆ पैसा भेजने / भुगतान करने की जानकारी</div>
+    <div class="fields">
+     <div>
+      <label>पैसा किसने भेजा?</label>
+      <input id="paymentPaidBy" placeholder="जैसे Atul / दुकान / कर्मचारी">
+     </div>
+     <div>
+      <label>किसको पैसा भेजा? *</label>
+      <input id="paymentRecipient" placeholder="व्यक्ति या दुकान का नाम">
+     </div>
+     <div>
+      <label>प्राप्तकर्ता का मोबाइल नंबर</label>
+      <input id="paymentRecipientMobile" maxlength="15" inputmode="numeric" placeholder="मोबाइल नंबर">
+     </div>
+     <div>
+      <label>प्राप्तकर्ता की लोकेशन</label>
+      <input id="paymentRecipientLocation" placeholder="जैसे Delhi, Etawah">
+     </div>
+     <div style="grid-column:1/-1">
+      <label>भुगतान का कारण / विवरण</label>
+      <input id="paymentPurpose" placeholder="जैसे सामान खरीदा, दुकान का भुगतान, ग्राहक को Refund">
+     </div>
+    </div>
+   </div>
+
+   <div class="section">Transaction Status</div>
+   <div class="fields">
+    <div>
+     <label>भुगतान की स्थिति</label>
+     <select id="paymentTransactionStatus">
+      <option value="Completed">Completed (पूरा हुआ)</option>
+      <option value="Pending">Pending (बाकी है)</option>
+      <option value="Failed">Failed (असफल)</option>
+     </select>
+    </div>
+   </div>
+
+   <div class="actions">
+    <button class="green" id="savePayment">✓ लेन-देन सेव करें</button>
+    <button class="soft" id="resetPayment">रीसेट</button>
+   </div>
+
+   <p class="small">
+    यह रिकॉर्ड आपके Workspace के डेटाबेस में सेव होगा। यह QR या बैंक भुगतान को अपने-आप सत्यापित नहीं करता। UTR और वास्तविक भुगतान की पुष्टि स्वयं करें।
+   </p>
+  </div>
+ </div>
+
+ <div class="panel">
+  <div class="head">▤ Payment Register इतिहास</div>
+  <div class="body">
+   <div class="fields">
+    <div>
+     <label>लेन-देन प्रकार</label>
+     <select id="paymentFilterType">
+      <option value="all">सभी लेन-देन</option>
+      <option value="received">पैसा प्राप्त</option>
+      <option value="sent">पैसा भेजा</option>
+     </select>
+    </div>
+    <div>
+     <label>खोजें</label>
+     <input id="paymentSearch" placeholder="नाम / मोबाइल / UTR / लोकेशन">
+    </div>
+   </div>
+
+   <div class="actions">
+    <button class="blue" id="refreshPayments">↻ Refresh</button>
+    <button class="soft" id="paymentCsv">CSV डाउनलोड</button>
+   </div>
+  </div>
+
+  <div class="tablewrap">
+   <table>
+    <thead>
+     <tr>
+      <th>तारीख</th>
+      <th>प्रकार</th>
+      <th>ग्राहक / प्राप्तकर्ता</th>
+      <th>मोबाइल / लोकेशन</th>
+      <th>राशि</th>
+      <th>माध्यम</th>
+      <th>UTR</th>
+      <th>किसने लिया / भेजा</th>
+      <th>कहाँ गया / कारण</th>
+      <th>Settlement / Status</th>
+      <th>एक्शन</th>
+     </tr>
+    </thead>
+    <tbody id="paymentRows">
+     <tr><td colspan="11">Payment Records लोड हो रहे हैं...</td></tr>
+    </tbody>
+   </table>
+  </div>
+ </div>
+</section>
+
 <section class="page" id="settings">
  <h2 class="title">सेटिंग्स</h2>
  <div class="panel">
@@ -344,10 +560,12 @@ let currentUser = null;
 let currentWorkspace = null;
 let bills = [];
 let myReports = [];
+let paymentRecords = [];
 let settings = {};
 let STORAGE = "";
 let SETS = "";
 let saving = false;
+let savingPayment = false;
 
 function showAuthError(message) {
  $("loading").hidden = true;
@@ -459,6 +677,7 @@ async function startDashboard() {
  applySettings();
  $("date").value = today();
  resetForm();
+ resetPaymentForm();
 
  $("loading").hidden = true;
  $("app").style.display = "block";
@@ -921,6 +1140,10 @@ function openPage(id) {
  if (id === "reports" || id === "customers") {
   loadMyReports();
  }
+
+ if (id === "payments") {
+  loadPaymentRecords();
+ }
 }
 
 function applySettings() {
@@ -1003,6 +1226,340 @@ async function wipeBills() {
  }
 }
 
+/* ===========================
+   PAYMENT REGISTER FUNCTIONS
+=========================== */
+
+function localDateTime() {
+ const d = new Date();
+ const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+ return local.toISOString().slice(0,16);
+}
+
+function resetPaymentForm() {
+ $("transactionType").value = "received";
+ $("paymentDate").value = localDateTime();
+ $("paymentAmount").value = "";
+ $("paymentMode").value = "Paytm QR";
+ $("paymentUtr").value = "";
+
+ $("paymentCustomer").value = "";
+ $("paymentCustomerMobile").value = "";
+ $("paymentCustomerLocation").value = "";
+ $("paymentReceivedBy").value = currentUser?.name || "";
+ $("paymentWentTo").value = "दुकान";
+ $("paymentSettlement").value = "Pending";
+ $("paymentSettlementNote").value = "";
+
+ $("paymentPaidBy").value = currentUser?.name || "";
+ $("paymentRecipient").value = "";
+ $("paymentRecipientMobile").value = "";
+ $("paymentRecipientLocation").value = "";
+ $("paymentPurpose").value = "";
+ $("paymentTransactionStatus").value = "Completed";
+
+ setPaymentType("received");
+}
+
+function setPaymentType(type) {
+ $("transactionType").value = type;
+
+ const received = type === "received";
+
+ $("receivedFields").classList.toggle("paymentHidden", !received);
+ $("sentFields").classList.toggle("paymentHidden", received);
+
+ $("receivedTypeBtn").classList.toggle("active", received);
+ $("sentTypeBtn").classList.toggle("active", !received);
+
+ $("receivedTypeBtn").classList.toggle("soft", !received);
+ $("sentTypeBtn").classList.toggle("soft", received);
+}
+
+async function loadPaymentRecords() {
+ $("paymentRows").innerHTML =
+  `<tr><td colspan="11">Payment Records लोड हो रहे हैं...</td></tr>`;
+
+ try {
+  const data = await apiRequest("/api/payment-collections");
+  paymentRecords = Array.isArray(data.collections) ? data.collections : [];
+  renderPaymentRecords();
+ } catch (error) {
+  console.error("Payment records load error:", error);
+  $("paymentRows").innerHTML =
+   `<tr><td colspan="11">रिकॉर्ड लोड नहीं हुए: ${safe(error.message)}</td></tr>`;
+ }
+}
+
+function renderPaymentRecords() {
+ const received = paymentRecords.filter(r =>
+  (r.transaction_type || "received") === "received"
+ );
+
+ const sent = paymentRecords.filter(r =>
+  r.transaction_type === "sent"
+ );
+
+ const receivedTotal = received
+  .filter(r => (r.transaction_status || "Completed") === "Completed")
+  .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+ const sentTotal = sent
+  .filter(r => (r.transaction_status || "Completed") === "Completed")
+  .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+ const pendingTotal = received
+  .filter(r => r.settlement_status === "Pending" &&
+               (r.transaction_status || "Completed") === "Completed")
+  .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+ $("pReceived").textContent = fmt(receivedTotal);
+ $("pSent").textContent = fmt(sentTotal);
+ $("pPending").textContent = fmt(pendingTotal);
+ $("pCount").textContent = paymentRecords.length;
+
+ const typeFilter = $("paymentFilterType").value;
+ const query = $("paymentSearch").value.trim().toLowerCase();
+
+ const filtered = paymentRecords.filter(r => {
+  const type = r.transaction_type || "received";
+
+  if (typeFilter !== "all" && type !== typeFilter) return false;
+
+  const searchText = [
+   r.customer_name,
+   r.customer_mobile,
+   r.customer_location,
+   r.recipient_name,
+   r.recipient_mobile,
+   r.recipient_location,
+   r.utr,
+   r.payment_mode,
+   r.purpose,
+   r.received_by,
+   r.paid_by,
+   r.money_went_to
+  ].join(" ").toLowerCase();
+
+  return searchText.includes(query);
+ });
+
+ if (!filtered.length) {
+  $("paymentRows").innerHTML =
+   `<tr><td colspan="11">अभी कोई Payment Record नहीं मिला।</td></tr>`;
+  return;
+ }
+
+ $("paymentRows").innerHTML = filtered.map(r => {
+  const type = r.transaction_type || "received";
+  const isReceived = type === "received";
+  const person = isReceived ? r.customer_name : r.recipient_name;
+  const mobile = isReceived ? r.customer_mobile : r.recipient_mobile;
+  const location = isReceived ? r.customer_location : r.recipient_location;
+  const who = isReceived ? r.received_by : r.paid_by;
+  const where = isReceived
+   ? (r.money_went_to || "-")
+   : (r.purpose || "-");
+
+  const status = r.transaction_status || "Completed";
+  const statusClass = status === "Completed" ? "paid" : "unpaid";
+
+  const settlement = isReceived
+   ? (r.settlement_status || "Pending")
+   : "लागू नहीं";
+
+  return `
+   <tr>
+    <td>${safe(r.received_at || r.created_at || "-")}</td>
+    <td>
+     <span class="badge ${isReceived ? "paid" : "unpaid"}">
+      ${isReceived ? "⬇ प्राप्त" : "⬆ भेजा"}
+     </span>
+    </td>
+    <td>${safe(person || "-")}</td>
+    <td>
+     ${safe(mobile || "-")}
+     <br>${safe(location || "-")}
+    </td>
+    <td><b>${fmt(r.amount)}</b></td>
+    <td>${safe(r.payment_mode || "-")}</td>
+    <td>${safe(r.utr || "-")}</td>
+    <td>${safe(who || "-")}</td>
+    <td>${safe(where)}</td>
+    <td>
+     <span class="badge ${statusClass}">${safe(status)}</span>
+     ${isReceived ? `
+      <br><select class="statusSelect" data-settlement="${safe(r.id)}">
+       <option value="Pending" ${settlement === "Pending" ? "selected" : ""}>Pending</option>
+       <option value="Received by Family" ${settlement === "Received by Family" ? "selected" : ""}>Received by Family</option>
+       <option value="Transferred to Shop" ${settlement === "Transferred to Shop" ? "selected" : ""}>Transferred to Shop</option>
+       <option value="Settled" ${settlement === "Settled" ? "selected" : ""}>Settled</option>
+      </select>
+     ` : ""}
+     <br><small>${safe(settlement)}</small>
+    </td>
+    <td>
+     <button class="red" data-payment-delete="${safe(r.id)}">हटाएं</button>
+    </td>
+   </tr>
+  `;
+ }).join("");
+}
+
+async function savePaymentRecord() {
+ if (savingPayment) return;
+
+ const type = $("transactionType").value;
+ const amount = Number($("paymentAmount").value);
+ const paymentMode = $("paymentMode").value;
+
+ if (!Number.isFinite(amount) || amount <= 0) {
+  alert("कृपया सही राशि दर्ज करें।");
+  $("paymentAmount").focus();
+  return;
+ }
+
+ const dateValue = $("paymentDate").value;
+
+ if (!dateValue) {
+  alert("लेन-देन की तारीख और समय चुनें।");
+  return;
+ }
+
+ const body = {
+  transactionType: type,
+  amount,
+  paymentMode,
+  utr: $("paymentUtr").value.trim(),
+  receivedAt: new Date(dateValue).toISOString(),
+  transactionStatus: $("paymentTransactionStatus").value
+ };
+
+ if (type === "received") {
+  body.customerName = $("paymentCustomer").value.trim();
+  body.customerMobile = $("paymentCustomerMobile").value.trim();
+  body.customerLocation = $("paymentCustomerLocation").value.trim();
+  body.receivedBy = $("paymentReceivedBy").value.trim();
+  body.moneyWentTo = $("paymentWentTo").value;
+  body.settlementStatus = $("paymentSettlement").value;
+  body.settlementNote = $("paymentSettlementNote").value.trim();
+
+  if (!body.customerName) {
+   alert("ग्राहक का नाम दर्ज करें।");
+   $("paymentCustomer").focus();
+   return;
+  }
+ } else {
+  body.paidBy = $("paymentPaidBy").value.trim();
+  body.recipientName = $("paymentRecipient").value.trim();
+  body.recipientMobile = $("paymentRecipientMobile").value.trim();
+  body.recipientLocation = $("paymentRecipientLocation").value.trim();
+  body.purpose = $("paymentPurpose").value.trim();
+
+  if (!body.recipientName) {
+   alert("जिसे पैसा भेजा है उसका नाम दर्ज करें।");
+   $("paymentRecipient").focus();
+   return;
+  }
+ }
+
+ savingPayment = true;
+ $("savePayment").disabled = true;
+ $("savePayment").textContent = "सेव हो रहा है...";
+
+ try {
+  const result = await apiRequest("/api/payment-collections", {
+   method: "POST",
+   headers: {"Content-Type":"application/json"},
+   body: JSON.stringify(body)
+  });
+
+  alert(result.message || "लेन-देन सेव हो गया।");
+  resetPaymentForm();
+  await loadPaymentRecords();
+
+ } catch (error) {
+  alert("लेन-देन सेव नहीं हुआ।\n" + error.message);
+ } finally {
+  savingPayment = false;
+  $("savePayment").disabled = false;
+  $("savePayment").textContent = "✓ लेन-देन सेव करें";
+ }
+}
+
+async function updatePaymentSettlement(id, status) {
+ if (!confirm("क्या आप इस Payment का Settlement Status बदलना चाहते हैं?")) {
+  renderPaymentRecords();
+  return;
+ }
+
+ try {
+  await apiRequest("/api/payment-collections", {
+   method: "PATCH",
+   headers: {"Content-Type":"application/json"},
+   body: JSON.stringify({
+    id,
+    settlementStatus: status
+   })
+  });
+
+  const record = paymentRecords.find(r => r.id === id);
+  if (record) record.settlement_status = status;
+
+  renderPaymentRecords();
+  alert("Settlement Status अपडेट हो गया।");
+ } catch (error) {
+  alert("Status अपडेट नहीं हुआ।\n" + error.message);
+  await loadPaymentRecords();
+ }
+}
+
+async function deletePaymentRecord(id) {
+ if (!confirm("क्या आप इस Payment Register रिकॉर्ड को स्थायी रूप से हटाना चाहते हैं?")) return;
+
+ try {
+  await apiRequest("/api/payment-collections?id=" + encodeURIComponent(id), {
+   method: "DELETE"
+  });
+
+  paymentRecords = paymentRecords.filter(r => r.id !== id);
+  renderPaymentRecords();
+  alert("Payment Record हटा दिया गया।");
+ } catch (error) {
+  alert("रिकॉर्ड नहीं हट पाया।\n" + error.message);
+ }
+}
+
+function exportPaymentCSV() {
+ const rows = [
+  [
+   "Date","Type","Customer/Recipient","Mobile","Location",
+   "Amount","Payment Mode","UTR","Received By/Paid By",
+   "Money Went To/Purpose","Settlement Status","Transaction Status"
+  ],
+  ...paymentRecords.map(r => [
+   r.received_at || r.created_at || "",
+   r.transaction_type || "received",
+   r.transaction_type === "sent" ? r.recipient_name : r.customer_name,
+   r.transaction_type === "sent" ? r.recipient_mobile : r.customer_mobile,
+   r.transaction_type === "sent" ? r.recipient_location : r.customer_location,
+   r.amount,
+   r.payment_mode,
+   r.utr,
+   r.transaction_type === "sent" ? r.paid_by : r.received_by,
+   r.transaction_type === "sent" ? r.purpose : r.money_went_to,
+   r.settlement_status,
+   r.transaction_status
+  ])
+ ];
+
+ const csv = "\ufeff" + rows.map(row =>
+  row.map(value => `"${String(value ?? "").replace(/"/g, '""')}"`).join(",")
+ ).join("\n");
+
+ downloadFile("Payment-Register.csv", csv, "text/csv;charset=utf-8");
+}
+
 document.querySelectorAll("nav button").forEach(button => {
  button.addEventListener("click", () => openPage(button.dataset.page));
 });
@@ -1040,12 +1597,33 @@ $("backup").addEventListener("click", backupData);
 $("wipe").addEventListener("click", wipeBills);
 $("csv").addEventListener("click", exportCSV);
 
+$("receivedTypeBtn").addEventListener("click", () => setPaymentType("received"));
+$("sentTypeBtn").addEventListener("click", () => setPaymentType("sent"));
+$("savePayment").addEventListener("click", savePaymentRecord);
+$("resetPayment").addEventListener("click", resetPaymentForm);
+$("refreshPayments").addEventListener("click", loadPaymentRecords);
+$("paymentFilterType").addEventListener("change", renderPaymentRecords);
+$("paymentSearch").addEventListener("input", renderPaymentRecords);
+$("paymentCsv").addEventListener("click", exportPaymentCSV);
+
+$("paymentRows").addEventListener("change", event => {
+ const select = event.target.closest("[data-settlement]");
+ if (select) {
+  updatePaymentSettlement(select.dataset.settlement, select.value);
+ }
+});
+
 document.addEventListener("click", event => {
  const printButton = event.target.closest("[data-print]");
  if (printButton) printExisting(printButton.dataset.print);
 
  const deleteButton = event.target.closest("[data-delete]");
  if (deleteButton) deleteBill(deleteButton.dataset.delete);
+
+ const paymentDeleteButton = event.target.closest("[data-payment-delete]");
+ if (paymentDeleteButton) {
+  deletePaymentRecord(paymentDeleteButton.dataset.paymentDelete);
+ }
 });
 
 $("logoutBtn").addEventListener("click", logout);
