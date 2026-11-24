@@ -154,6 +154,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
     <div class="fields">
      <div><label>ग्राहक का नाम *</label><input id="customer" placeholder="नाम दर्ज करें"></div>
      <div><label>मोबाइल नंबर</label><input id="mobile" maxlength="10" inputmode="numeric" placeholder="मोबाइल नंबर"></div>
+     <div><label>ग्राहक का पता</label><input id="customerAddress" placeholder="ग्राहक का पूरा पता"></div>
      <div><label>बिल दिनांक</label><input type="date" id="date"></div>
      <div><label>भुगतान माध्यम</label><select id="mode"><option>UPI</option><option>Cash</option><option>Card</option><option>Bank Transfer</option><option>Other</option></select></div>
      <div><label>UTR / Transaction ID</label><input id="utr" placeholder="Reference No."></div>
@@ -222,7 +223,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
  <div class="panel">
   <div class="tablewrap">
    <table>
-    <thead><tr><th>बिल नंबर</th><th>ग्राहक</th><th>मोबाइल</th><th>दिनांक</th><th>राशि</th><th>स्थिति</th><th>एक्शन</th></tr></thead>
+    <thead><tr><th>बिल नंबर</th><th>ग्राहक</th><th>मोबाइल</th><th>पता</th><th>दिनांक</th><th>राशि</th><th>स्थिति</th><th>एक्शन</th></tr></thead>
     <tbody id="historyRows"></tbody>
    </table>
   </div>
@@ -235,7 +236,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
  <div class="panel">
   <div class="tablewrap">
    <table>
-    <thead><tr><th>ग्राहक</th><th>मोबाइल</th><th>बिल संख्या</th><th>कुल राशि</th></tr></thead>
+    <thead><tr><th>ग्राहक</th><th>मोबाइल</th><th>पता</th><th>बिल संख्या</th><th>कुल राशि</th></tr></thead>
     <tbody id="customerRows"></tbody>
    </table>
   </div>
@@ -474,6 +475,7 @@ function calc() {
 function resetForm() {
  $("customer").value = "";
  $("mobile").value = "";
+ $("customerAddress").value = "";
  $("utr").value = "";
  $("mode").value = "UPI";
  $("status").value = "Paid";
@@ -513,6 +515,7 @@ function makeBill() {
   id: "AJSC-" + Date.now(),
   name,
   mobile,
+  address: $("customerAddress").value.trim(),
   date: $("date").value || today(),
   mode: $("mode").value,
   utr: $("utr").value.trim(),
@@ -555,6 +558,7 @@ function receipt(bill) {
   </p>
   <p><b>ग्राहक:</b> ${safe(bill.name)}
    &nbsp; <b>मोबाइल:</b> ${safe(bill.mobile || "-")}
+   &nbsp; <b>Address:</b> ${safe(bill.address || "-")}
   </p>
   <table>
    <thead><tr><th>क्र.</th><th>सेवा का नाम</th><th>राशि</th></tr></thead>
@@ -614,7 +618,7 @@ function render() {
 function renderHistory() {
  const query = ($("searchBill").value || "").toLowerCase();
  const filtered = bills.filter(bill =>
-  (bill.id + " " + bill.name + " " + bill.mobile).toLowerCase().includes(query)
+  (bill.id + " " + bill.name + " " + bill.mobile + " " + (bill.address || "")).toLowerCase().includes(query)
  );
 
  $("historyRows").innerHTML = filtered.map(bill => `
@@ -622,6 +626,7 @@ function renderHistory() {
    <td>${safe(bill.id)}</td>
    <td>${safe(bill.name)}</td>
    <td>${safe(bill.mobile || "-")}</td>
+   <td>${safe(bill.address || "-")}</td>
    <td>${safe(bill.date)}</td>
    <td>${fmt(bill.total)}</td>
    <td>${badge(bill)}</td>
@@ -630,7 +635,7 @@ function renderHistory() {
     <button class="red" data-delete="${safe(bill.id)}">हटाएं</button>
    </td>
   </tr>
- `).join("") || `<tr><td colspan="7">रिकॉर्ड नहीं मिला</td></tr>`;
+ `).join("") || `<tr><td colspan="8">रिकॉर्ड नहीं मिला</td></tr>`;
 }
 
 function renderCustomers() {
@@ -640,22 +645,24 @@ function renderCustomers() {
  bills.forEach(bill => {
   const key = bill.mobile || bill.name;
   if (!map[key]) {
-   map[key] = {name:bill.name,mobile:bill.mobile,count:0,total:0};
+   map[key] = {name:bill.name,mobile:bill.mobile,address:bill.address || "",count:0,total:0};
   }
   map[key].count++;
+  if (bill.address) map[key].address = bill.address;
   map[key].total += Number(bill.total || 0);
  });
 
  $("customerRows").innerHTML = Object.values(map)
-  .filter(customer => (customer.name + " " + customer.mobile).toLowerCase().includes(query))
+  .filter(customer => (customer.name + " " + customer.mobile + " " + customer.address).toLowerCase().includes(query))
   .map(customer => `
    <tr>
     <td>${safe(customer.name)}</td>
     <td>${safe(customer.mobile || "-")}</td>
+    <td>${safe(customer.address || "-")}</td>
     <td>${customer.count}</td>
     <td>${fmt(customer.total)}</td>
    </tr>
-  `).join("") || `<tr><td colspan="4">ग्राहक नहीं मिले</td></tr>`;
+  `).join("") || `<tr><td colspan="5">ग्राहक नहीं मिले</td></tr>`;
 }
 
 function renderReport() {
@@ -713,9 +720,9 @@ function downloadFile(name, data, type) {
 
 function exportCSV() {
  const rows = [
-  ["Bill No","Customer","Mobile","Date","Amount","Mode","Status","UTR"],
+  ["Bill No","Customer","Mobile","Address","Date","Amount","Mode","Status","UTR"],
   ...bills.map(bill => [
-   bill.id,bill.name,bill.mobile,bill.date,bill.total,bill.mode,bill.status,bill.utr
+   bill.id,bill.name,bill.mobile,bill.address || "",bill.date,bill.total,bill.mode,bill.status,bill.utr
   ])
  ];
 
