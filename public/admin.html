@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -107,6 +108,29 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 .activate-btn{background:#168447}
 .deactivate-btn{background:#d18a16}
 .delete-btn{background:#d93636}
+.approve-btn{background:#168447}
+.reject-btn{background:#d93636}
+.save-btn{background:#1769d2;color:white}
+.review-select,.admin-note{
+  width:100%;
+  min-width:130px;
+  padding:8px;
+  border:1px solid #ccd6e4;
+  border-radius:7px;
+  font:inherit;
+  margin-bottom:6px
+}
+.admin-note{min-width:180px;min-height:65px;resize:vertical}
+.bill-info{
+  line-height:1.7;
+  min-width:150px
+}
+.report-details{
+  white-space:pre-wrap;
+  max-width:260px;
+  overflow-wrap:anywhere;
+  line-height:1.6
+}
 @media(max-width:600px){
   .container{padding:12px}
   header{padding:15px}
@@ -180,7 +204,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 
     <section class="panel active" id="operators">
       <h3>सभी Users और Operators</h3>
-
       <div class="table-wrap">
         <table>
           <thead>
@@ -193,7 +216,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
               <th>Action</th>
             </tr>
           </thead>
-
           <tbody id="operatorsBody"></tbody>
         </table>
       </div>
@@ -201,7 +223,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 
     <section class="panel" id="shops">
       <h3>सभी Shops</h3>
-
       <div class="table-wrap">
         <table>
           <thead>
@@ -213,7 +234,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
               <th>Status</th>
             </tr>
           </thead>
-
           <tbody id="shopsBody"></tbody>
         </table>
       </div>
@@ -221,7 +241,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 
     <section class="panel" id="bills">
       <h3>सभी Bills</h3>
-
       <div class="table-wrap">
         <table>
           <thead>
@@ -235,7 +254,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
               <th>तारीख</th>
             </tr>
           </thead>
-
           <tbody id="billsBody"></tbody>
         </table>
       </div>
@@ -243,7 +261,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 
     <section class="panel" id="customers">
       <h3>सभी Customers</h3>
-
       <div class="table-wrap">
         <table>
           <thead>
@@ -255,7 +272,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
               <th>तारीख</th>
             </tr>
           </thead>
-
           <tbody id="customersBody"></tbody>
         </table>
       </div>
@@ -263,20 +279,21 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 
     <section class="panel" id="reports">
       <h3>Operator Reports</h3>
-
       <div class="table-wrap">
-        <table>
+        <table style="min-width:1100px">
           <thead>
             <tr>
               <th>Operator</th>
               <th>दुकान</th>
+              <th>Bill जानकारी</th>
               <th>कारण</th>
               <th>विवरण</th>
-              <th>Status</th>
+              <th>Report Status</th>
+              <th>Admin Note</th>
               <th>तारीख</th>
+              <th>Action</th>
             </tr>
           </thead>
-
           <tbody id="reportsBody"></tbody>
         </table>
       </div>
@@ -284,7 +301,6 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 
     <section class="panel" id="requests">
       <h3>Join Requests</h3>
-
       <div class="table-wrap">
         <table>
           <thead>
@@ -294,9 +310,9 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
               <th>दुकान</th>
               <th>Status</th>
               <th>तारीख</th>
+              <th>Action</th>
             </tr>
           </thead>
-
           <tbody id="requestsBody"></tbody>
         </table>
       </div>
@@ -311,6 +327,7 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
       रोक दिया जाएगा। Main Admin को Delete नहीं किया जा सकता।
       <br><br>
       यह पैनल Database में मौजूद डेटा दिखाता है।
+      Browser में पुराने LocalStorage में सेव Bills यहाँ अपने आप नहीं दिखेंगे।
     </p>
 
   </div>
@@ -335,7 +352,7 @@ function cell(value) {
 
 function rows(id, html) {
   $(id).innerHTML = html ||
-    `<tr><td colspan="10" class="empty">अभी कोई डेटा उपलब्ध नहीं है।</td></tr>`;
+    `<tr><td colspan="12" class="empty">अभी कोई डेटा उपलब्ध नहीं है।</td></tr>`;
 }
 
 function showTab(id, button) {
@@ -386,17 +403,112 @@ async function changeOperatorStatus(userId, newStatus) {
     const result = await response.json();
 
     if (!response.ok || !result.success) {
-      throw new Error(
-        result.message || "कार्रवाई सफल नहीं हुई।"
-      );
+      throw new Error(result.message || "कार्रवाई सफल नहीं हुई।");
     }
 
     alert(result.message);
-
     await loadAdmin();
 
   } catch (error) {
     alert(error.message || "Server से संपर्क नहीं हो पाया।");
+  }
+}
+
+// JOIN REQUEST APPROVE / REJECT
+async function processJoinRequest(requestId, action) {
+  const actionText = action === "approve" ? "Approve" : "Reject";
+
+  if (!confirm(`क्या आप इस Join Request को ${actionText} करना चाहते हैं?`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/admin/join-requests", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        requestId,
+        action
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "कार्रवाई सफल नहीं हुई।");
+    }
+
+    alert(result.message);
+    await loadAdmin();
+
+  } catch (error) {
+    alert(error.message || "Join Request पर कार्रवाई नहीं हो सकी।");
+  }
+}
+
+// REPORT DETAILS को पढ़ना
+function getReportInfo(details) {
+  try {
+    const parsed = JSON.parse(details || "{}");
+
+    if (parsed && typeof parsed === "object" && parsed.bill) {
+      return {
+        message: parsed.message || "",
+        bill: parsed.bill
+      };
+    }
+  } catch (error) {
+    // पुराने साधारण टेक्स्ट विवरण के लिए
+  }
+
+  return {
+    message: details || "",
+    bill: {}
+  };
+}
+
+// REPORT STATUS UPDATE
+async function updateReport(reportId) {
+  const statusElement = $("report-status-" + reportId);
+  const noteElement = $("report-note-" + reportId);
+
+  if (!statusElement || !noteElement) return;
+
+  const status = statusElement.value;
+  const adminNote = noteElement.value.trim();
+
+  if (!confirm("क्या आप इस Report का Status और Admin Note सेव करना चाहते हैं?")) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/admin/reports/status", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        reportId,
+        status,
+        adminNote
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Report अपडेट नहीं हुई।");
+    }
+
+    alert(result.message);
+    await loadAdmin();
+
+  } catch (error) {
+    alert(error.message || "Report अपडेट करने में समस्या हुई।");
   }
 }
 
@@ -428,9 +540,7 @@ async function loadAdmin() {
     }
 
     if (!response.ok || !result.success) {
-      throw new Error(
-        result.message || "डेटा लोड नहीं हुआ।"
-      );
+      throw new Error(result.message || "डेटा लोड नहीं हुआ।");
     }
 
     const d = result.data;
@@ -470,7 +580,6 @@ async function loadAdmin() {
 
       let actions = "";
 
-      // Main Admin के लिए कोई Action नहीं दिखेगा।
       if (Number(u.is_admin) !== 1) {
         if (u.status === "active") {
           actions += `
@@ -544,27 +653,98 @@ async function loadAdmin() {
     `).join(""));
 
     // REPORTS
-    rows("reportsBody", reports.map(r => `
-      <tr>
-        ${cell(r.operator_name)}
-        ${cell(r.workspace_name)}
-        ${cell(r.reason)}
-        ${cell(r.details)}
-        ${cell(r.status)}
-        ${cell(r.created_at)}
-      </tr>
-    `).join(""));
+    rows("reportsBody", reports.map(r => {
+      const info = getReportInfo(r.details);
+      const bill = info.bill || {};
+
+      const billInfo = bill.bill_number
+        ? `
+          <div class="bill-info">
+            <b>Bill:</b> ${safe(bill.bill_number)}<br>
+            <b>ग्राहक:</b> ${safe(bill.customer_name || "-")}<br>
+            <b>मोबाइल:</b> ${safe(bill.customer_mobile || "-")}<br>
+            <b>रकम:</b> ₹${safe(bill.total ?? 0)}<br>
+            <b>तारीख:</b> ${safe(bill.bill_date || "-")}
+          </div>
+        `
+        : `<div class="bill-info">Bill ID: ${safe(r.bill_id || "-")}<br>पुरानी Report या Bill जानकारी उपलब्ध नहीं है।</div>`;
+
+      const status = ["open", "reviewing", "resolved", "rejected"]
+        .includes(r.status) ? r.status : "open";
+
+      return `
+        <tr>
+          ${cell(r.operator_name)}
+          ${cell(r.workspace_name)}
+
+          <td>${billInfo}</td>
+
+          ${cell(r.reason)}
+
+          <td>
+            <div class="report-details">${safe(info.message || "-")}</div>
+          </td>
+
+          <td>
+            <select class="review-select" id="report-status-${safe(r.id)}">
+              <option value="open" ${status === "open" ? "selected" : ""}>Open</option>
+              <option value="reviewing" ${status === "reviewing" ? "selected" : ""}>Reviewing</option>
+              <option value="resolved" ${status === "resolved" ? "selected" : ""}>Resolved</option>
+              <option value="rejected" ${status === "rejected" ? "selected" : ""}>Rejected</option>
+            </select>
+          </td>
+
+          <td>
+            <textarea
+              class="admin-note"
+              id="report-note-${safe(r.id)}"
+              placeholder="Admin Note लिखें...">${safe(r.admin_note || "")}</textarea>
+          </td>
+
+          ${cell(r.created_at)}
+
+          <td>
+            <button
+              class="action-btn save-btn"
+              onclick="updateReport('${safe(r.id)}')">
+              Save
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join(""));
 
     // JOIN REQUESTS
-    rows("requestsBody", requests.map(r => `
-      <tr>
-        ${cell(r.user_name)}
-        ${cell(r.mobile)}
-        ${cell(r.workspace_name)}
-        ${cell(r.status)}
-        ${cell(r.requested_at)}
-      </tr>
-    `).join(""));
+    rows("requestsBody", requests.map(r => {
+      let actions = "-";
+
+      if (r.status === "pending") {
+        actions = `
+          <button
+            class="action-btn approve-btn"
+            onclick="processJoinRequest('${safe(r.id)}','approve')">
+            Approve
+          </button>
+
+          <button
+            class="action-btn reject-btn"
+            onclick="processJoinRequest('${safe(r.id)}','reject')">
+            Reject
+          </button>
+        `;
+      }
+
+      return `
+        <tr>
+          ${cell(r.user_name)}
+          ${cell(r.mobile)}
+          ${cell(r.workspace_name)}
+          ${cell(r.status)}
+          ${cell(r.requested_at)}
+          <td>${actions}</td>
+        </tr>
+      `;
+    }).join(""));
 
     $("message").hidden = true;
     $("dashboard").hidden = false;
