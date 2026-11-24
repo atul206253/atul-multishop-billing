@@ -235,6 +235,31 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
 <section class="page" id="customers">
  <h2 class="title">ग्राहक सूची</h2>
  <input class="search" id="searchCustomer" placeholder="नाम या मोबाइल खोजें">
+
+ <div class="panel">
+  <div class="head">📢 आपके नाम पर बनी Reports</div>
+  <div class="body">
+   <p class="small">यहाँ Admin द्वारा आपके नाम पर बनाई गई Reports और उनका Status दिखाई देगा। आप इन Reports में बदलाव नहीं कर सकते।</p>
+   <div class="tablewrap">
+    <table>
+     <thead>
+      <tr>
+       <th>दिनांक</th>
+       <th>कारण</th>
+       <th>विवरण</th>
+       <th>बिल नंबर</th>
+       <th>Status</th>
+       <th>Admin Note</th>
+      </tr>
+     </thead>
+     <tbody id="myReportRows">
+      <tr><td colspan="6">Reports लोड हो रही हैं...</td></tr>
+     </tbody>
+    </table>
+   </div>
+  </div>
+ </div>
+
  <div class="panel">
   <div class="tablewrap">
    <table>
@@ -304,6 +329,7 @@ const safe = s => String(s ?? "").replace(/[&<>"']/g, c => ({
 let currentUser = null;
 let currentWorkspace = null;
 let bills = [];
+let myReports = [];
 let settings = {};
 let STORAGE = "";
 let SETS = "";
@@ -424,6 +450,7 @@ async function startDashboard() {
  $("app").style.display = "block";
 
  await syncBillsFromServer();
+ await loadMyReports();
 }
 
 async function syncBillsFromServer() {
@@ -450,7 +477,6 @@ async function syncBillsFromServer() {
     migrated++;
     serverIds.add(String(bill.id));
    } catch (error) {
-    // पहले से मौजूद बिल को दोबारा सेव नहीं करेंगे।
     if (!String(error.message).includes("पहले से")) {
      console.error("पुराना बिल भेजने में समस्या:", bill.id, error);
     }
@@ -482,6 +508,77 @@ async function syncBillsFromServer() {
   alert("सर्वर से बिल लोड नहीं हो पाए।\n" + error.message +
         "\n\nइंटरनेट और Login जाँचकर पेज Refresh करें।");
  }
+}
+
+async function loadMyReports() {
+ const rows = $("myReportRows");
+
+ if (rows) {
+  rows.innerHTML = `<tr><td colspan="6">Reports लोड हो रही हैं...</td></tr>`;
+ }
+
+ try {
+  const data = await apiRequest("/api/reports/mine");
+  myReports = Array.isArray(data.reports) ? data.reports : [];
+  renderMyReports();
+ } catch (error) {
+  console.error("Reports load error:", error);
+  myReports = [];
+
+  if (rows) {
+   rows.innerHTML = `<tr><td colspan="6">Reports लोड नहीं हो पाईं। पेज Refresh करें।</td></tr>`;
+  }
+ }
+}
+
+function renderMyReports() {
+ const rows = $("myReportRows");
+ if (!rows) return;
+
+ if (!myReports.length) {
+  rows.innerHTML = `<tr><td colspan="6">अभी आपके नाम पर कोई Report नहीं बनाई गई है।</td></tr>`;
+  return;
+ }
+
+ const statusInfo = {
+  open: ["Open", "unpaid"],
+  reviewing: ["Reviewing", "unpaid"],
+  resolved: ["Resolved", "paid"],
+  rejected: ["Rejected", "unpaid"]
+ };
+
+ rows.innerHTML = myReports.map(report => {
+  let details = {};
+
+  try {
+   details = typeof report.details === "string"
+    ? JSON.parse(report.details || "{}")
+    : (report.details || {});
+  } catch {
+   details = {};
+  }
+
+  const bill = details.bill || {};
+  const message = details.message || "";
+  const statusKey = String(report.status || "open").toLowerCase();
+  const status = statusInfo[statusKey] || [report.status || "Open", "unpaid"];
+
+  return `
+   <tr>
+    <td>${safe(report.created_at || "-")}</td>
+    <td>${safe(report.reason || "-")}</td>
+    <td>
+     ${safe(message || "-")}
+     ${bill.customer_name ? `<br><b>ग्राहक:</b> ${safe(bill.customer_name)}` : ""}
+     ${bill.customer_mobile ? `<br><b>मोबाइल:</b> ${safe(bill.customer_mobile)}` : ""}
+     ${bill.customer_address ? `<br><b>पता:</b> ${safe(bill.customer_address)}` : ""}
+    </td>
+    <td>${safe(bill.bill_number || report.bill_id || "-")}</td>
+    <td><span class="badge ${status[1]}">${safe(status[0])}</span></td>
+    <td>${safe(report.admin_note || "अभी Admin Note नहीं है।")}</td>
+   </tr>
+  `;
+ }).join("");
 }
 
 async function logout() {
@@ -793,6 +890,10 @@ function openPage(id) {
   button.classList.toggle("active", button.dataset.page === id);
  });
  window.scrollTo(0, 0);
+
+ if (id === "customers") {
+  loadMyReports();
+ }
 }
 
 function applySettings() {
