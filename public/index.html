@@ -368,7 +368,8 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
 
    <div class="fields">
     <div><label>लेन-देन की तारीख और समय *</label><input type="datetime-local" id="paymentDate"></div>
-    <div><label>राशि ₹ *</label><input type="number" id="paymentAmount" min="0.01" step="0.01" placeholder="राशि दर्ज करें"></div>
+    <div><label>मूल राशि ₹ *</label><input type="number" id="paymentAmount" min="0.01" step="0.01" placeholder="राशि दर्ज करें"></div>
+    <div><label>CSC Charge ₹</label><input type="number" id="paymentCscCharge" min="0" step="0.01" value="0" placeholder="CSC चार्ज दर्ज करें"></div>
     <div>
      <label>Payment Mode *</label>
      <select id="paymentMode">
@@ -383,6 +384,11 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
      </select>
     </div>
     <div><label>UTR / Transaction ID</label><input id="paymentUtr" placeholder="UTR / Transaction Reference"></div>
+   </div>
+
+   <div class="total" style="margin:12px 0">
+    <span id="paymentCalculationLabel">ग्राहक से प्राप्त ₹500 - CSC Charge ₹0 = देने योग्य राशि</span>
+    <strong id="paymentFinalPreview">₹ 0</strong>
    </div>
 
    <div id="receivedFields">
@@ -1232,6 +1238,8 @@ function resetPaymentForm() {
  $("transactionType").value = "received";
  $("paymentDate").value = localDateTime();
  $("paymentAmount").value = "";
+ $("paymentCscCharge").value = "0";
+ updatePaymentCalculation();
  $("paymentMode").value = "Paytm QR";
  $("paymentUtr").value = "";
 
@@ -1253,8 +1261,33 @@ function resetPaymentForm() {
  setPaymentType("received");
 }
 
+function paymentRecordFinalAmount(r) {
+ const amount = Number(r?.amount || 0);
+ const charge = Number(r?.csc_charge || 0);
+ const isReceived = (r?.transaction_type || "received") === "received";
+ const calculated = isReceived ? amount - charge : amount + charge;
+ const stored = Number(r?.final_amount);
+ // पुराने रिकॉर्ड में migration के बाद final_amount 0 हो सकता है।
+ if (r?.final_amount == null || (stored === 0 && charge === 0 && amount > 0)) return calculated;
+ return stored;
+}
+
+function updatePaymentCalculation() {
+ const type = $("transactionType").value || "received";
+ const amount = Math.max(0, Number($("paymentAmount").value) || 0);
+ const charge = Math.max(0, Number($("paymentCscCharge").value) || 0);
+ const finalAmount = type === "received" ? amount - charge : amount + charge;
+ $("paymentCalculationLabel").textContent = type === "received"
+  ? `प्राप्त राशि ${fmt(amount)} - CSC Charge ${fmt(charge)} = ग्राहक/दुकान को देने योग्य राशि`
+  : `भेजी गई राशि ${fmt(amount)} + CSC Charge ${fmt(charge)} = कुल दुकान से भुगतान`;
+ $("paymentFinalPreview").textContent = fmt(finalAmount);
+ $("paymentFinalPreview").style.color = finalAmount < 0 ? "#c62828" : "inherit";
+ return {amount, charge, finalAmount};
+}
+
 function setPaymentType(type) {
  $("transactionType").value = type;
+ updatePaymentCalculation();
  const received = type === "received";
 
  $("receivedFields").classList.toggle("paymentHidden", !received);
@@ -1287,16 +1320,16 @@ function renderPaymentRecords() {
 
  const receivedTotal = received
   .filter(r => (r.transaction_status || "Completed") === "Completed")
-  .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  .reduce((sum, r) => sum + paymentRecordFinalAmount(r), 0);
 
  const sentTotal = sent
   .filter(r => (r.transaction_status || "Completed") === "Completed")
-  .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  .reduce((sum, r) => sum + paymentRecordFinalAmount(r), 0);
 
  const pendingTotal = received
   .filter(r => r.settlement_status === "Pending" &&
                (r.transaction_status || "Completed") === "Completed")
-  .reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  .reduce((sum, r) => sum + paymentRecordFinalAmount(r), 0);
 
  $("pReceived").textContent = fmt(receivedTotal);
  $("pSent").textContent = fmt(sentTotal);
@@ -1343,7 +1376,11 @@ function renderPaymentRecords() {
     <td><span class="badge ${isReceived ? "paid" : "unpaid"}">${isReceived ? "⬇ प्राप्त" : "⬆ भेजा"}</span></td>
     <td>${safe(person || "-")}</td>
     <td>${safe(mobile || "-")}<br>${safe(location || "-")}</td>
-    <td><b>${fmt(r.amount)}</b></td>
+    <td>
+     <b>मूल: ${fmt(r.amount)}</b><br>
+     <small>CSC: ${fmt(r.csc_charge || 0)}</small><br>
+     <b>कुल: ${fmt(r.final_amount ?? (isReceived ? Number(r.amount || 0) - Number(r.csc_charge || 0) : Number(r.amount || 0) + Number(r.csc_charge || 0)))}</b>
+    </td>
     <td>${safe(r.payment_mode || "-")}</td>
     <td>${safe(r.utr || "-")}</td>
     <td>${safe(who || "-")}</td>
@@ -1429,6 +1466,8 @@ function printPaymentReceipt(id) {
 
  const date = paymentReceiptDate(r.received_at || r.created_at);
  const amount = Number(r.amount || 0);
+ const cscCharge = Number(r.csc_charge || 0);
+ const finalAmount = paymentRecordFinalAmount(r);
 
  $("printReceipt").innerHTML = `
   <div class="receiptTop">
@@ -1454,7 +1493,9 @@ function printPaymentReceipt(id) {
    <table>
     <thead><tr><th>विवरण</th><th>जानकारी</th></tr></thead>
     <tbody>
-     <tr><td>राशि</td><td><b>${fmt(amount)}</b></td></tr>
+     <tr><td>मूल राशि</td><td>${fmt(amount)}</td></tr>
+     <tr><td>CSC Charge ${isReceived ? "(घटाया गया)" : "(जोड़ा गया)"}</td><td>${fmt(cscCharge)}</td></tr>
+     <tr><td><b>${isReceived ? "अंतिम देने योग्य राशि" : "कुल भुगतान राशि"}</b></td><td><b>${fmt(finalAmount)}</b></td></tr>
      <tr><td>Payment Mode</td><td>${safe(r.payment_mode || "-")}</td></tr>
      <tr><td>UTR / Transaction ID</td><td>${safe(r.utr || "-")}</td></tr>
      <tr><td>${isReceived ? "पैसा किसने प्राप्त किया" : "पैसा किसने भेजा"}</td><td>${safe(who || "-")}</td></tr>
@@ -1465,7 +1506,7 @@ function printPaymentReceipt(id) {
    </table>
 
    <div style="border:2px solid #111;padding:15px;margin-top:20px;text-align:center">
-    <h2 style="margin:5px">कुल राशि: ${fmt(amount)}</h2>
+    <h2 style="margin:5px">${isReceived ? "अंतिम देने योग्य राशि" : "कुल भुगतान राशि"}: ${fmt(finalAmount)}</h2>
     <b>${safe(r.transaction_status || "Completed")}</b>
    </div>
 
@@ -1499,11 +1540,19 @@ async function savePaymentRecord() {
 
  const type = $("transactionType").value;
  const amount = Number($("paymentAmount").value);
+ const cscCharge = Math.max(0, Number($("paymentCscCharge").value) || 0);
  const paymentMode = $("paymentMode").value;
+ const finalAmount = type === "received" ? amount - cscCharge : amount + cscCharge;
 
  if (!Number.isFinite(amount) || amount <= 0) {
   alert("कृपया सही राशि दर्ज करें।");
   $("paymentAmount").focus();
+  return;
+ }
+
+ if (!Number.isFinite(cscCharge) || cscCharge < 0 || (type === "received" && finalAmount < 0)) {
+  alert("CSC Charge सही दर्ज करें। प्राप्त राशि से CSC Charge अधिक नहीं हो सकता।");
+  $("paymentCscCharge").focus();
   return;
  }
 
@@ -1517,6 +1566,7 @@ async function savePaymentRecord() {
  const body = {
   transactionType: type,
   amount,
+  cscCharge,
   paymentMode,
   utr: $("paymentUtr").value.trim(),
   receivedAt: new Date(dateValue).toISOString(),
@@ -1619,14 +1669,14 @@ async function deletePaymentRecord(id) {
 
 function exportPaymentCSV() {
  const rows = [
-  ["Date","Type","Customer/Recipient","Mobile","Location","Amount","Payment Mode","UTR","Received By/Paid By","Money Went To/Purpose","Settlement Status","Transaction Status"],
+  ["Date","Type","Customer/Recipient","Mobile","Location","Base Amount","CSC Charge","Final Amount","Payment Mode","UTR","Received By/Paid By","Money Went To/Purpose","Settlement Status","Transaction Status"],
   ...paymentRecords.map(r => [
    r.received_at || r.created_at || "",
    r.transaction_type || "received",
    r.transaction_type === "sent" ? r.recipient_name : r.customer_name,
    r.transaction_type === "sent" ? r.recipient_mobile : r.customer_mobile,
    r.transaction_type === "sent" ? r.recipient_location : r.customer_location,
-   r.amount,r.payment_mode,r.utr,
+   r.amount,r.csc_charge || 0,paymentRecordFinalAmount(r),r.payment_mode,r.utr,
    r.transaction_type === "sent" ? r.paid_by : r.received_by,
    r.transaction_type === "sent" ? r.purpose : r.money_went_to,
    r.settlement_status,r.transaction_status
@@ -1688,6 +1738,8 @@ $("refreshPayments").addEventListener("click", loadPaymentRecords);
 $("paymentFilterType").addEventListener("change", renderPaymentRecords);
 $("paymentSearch").addEventListener("input", renderPaymentRecords);
 $("paymentCsv").addEventListener("click", exportPaymentCSV);
+$("paymentAmount").addEventListener("input", updatePaymentCalculation);
+$("paymentCscCharge").addEventListener("input", updatePaymentCalculation);
 
 $("paymentRows").addEventListener("change", event => {
  const select = event.target.closest("[data-settlement]");
