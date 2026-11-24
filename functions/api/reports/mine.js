@@ -8,51 +8,35 @@ const json = (data, status = 200) =>
     }
   });
 
+async function sha256Base64(value) {
+  const bytes = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return btoa(String.fromCharCode(...new Uint8Array(hash)));
+}
+
 function getCookie(request, name) {
   const cookieHeader = request.headers.get("Cookie") || "";
-  const cookies = cookieHeader.split(";");
 
-  for (const cookie of cookies) {
-    const index = cookie.indexOf("=");
-    if (index === -1) continue;
-
-    const key = cookie.slice(0, index).trim();
-    const value = cookie.slice(index + 1).trim();
-
-    if (key === name) return decodeURIComponent(value);
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return value.join("=");
   }
 
   return null;
 }
 
-async function sha256Base64(value) {
-  const data = new TextEncoder().encode(value);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-
-  let binary = "";
-  for (const byte of new Uint8Array(hash)) {
-    binary += String.fromCharCode(byte);
-  }
-
-  return btoa(binary);
-}
-
 export async function onRequestGet({ request, env }) {
   try {
-    if (!env.DB) {
-      return json({ success: false, message: "Database binding नहीं मिला।" }, 500);
-    }
-
     const token = getCookie(request, "session");
 
     if (!token) {
-      return json({ success: false, message: "कृपया पहले Login करें।" }, 401);
+      return json({ success: false, message: "Login required" }, 401);
     }
 
     const tokenHash = await sha256Base64(token);
 
     const session = await env.DB.prepare(`
-      SELECT s.user_id, u.name, u.mobile
+      SELECT s.user_id
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ?
@@ -62,7 +46,7 @@ export async function onRequestGet({ request, env }) {
     `).bind(tokenHash).first();
 
     if (!session) {
-      return json({ success: false, message: "Session समाप्त हो गया है।" }, 401);
+      return json({ success: false, message: "Invalid session" }, 401);
     }
 
     const result = await env.DB.prepare(`
@@ -76,11 +60,9 @@ export async function onRequestGet({ request, env }) {
         r.admin_note,
         r.created_at,
         r.reviewed_at,
-        w.name AS workspace_name,
-        admin.name AS admin_name
+        w.name AS workspace_name
       FROM operator_reports r
       LEFT JOIN workspaces w ON w.id = r.workspace_id
-      LEFT JOIN users admin ON admin.id = r.reviewed_by
       WHERE r.reported_user_id = ?
       ORDER BY r.created_at DESC
     `).bind(session.user_id).all();
@@ -93,7 +75,7 @@ export async function onRequestGet({ request, env }) {
   } catch (error) {
     return json({
       success: false,
-      message: "Reports लोड करने में समस्या हुई।",
+      message: "Reports load failed",
       error: error.message
     }, 500);
   }
