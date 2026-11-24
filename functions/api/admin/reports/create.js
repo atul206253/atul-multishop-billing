@@ -102,7 +102,11 @@ export async function onRequestPost({ request, env }) {
     const workspaceId = String(body.workspaceId || "").trim();
     const reason = String(body.reason || "").trim();
     const message = String(body.details || "").trim();
-    const billNumber = String(body.billNumber || "").trim();
+
+    // Bill ID या Bill Number, दोनों स्वीकार होंगे
+    const billReference = String(
+      body.billId || body.billNumber || ""
+    ).trim();
 
     if (!reportedUserId || !workspaceId || !reason || !message) {
       return json({
@@ -114,11 +118,11 @@ export async function onRequestPost({ request, env }) {
     if (
       reason.length > 200 ||
       message.length > 5000 ||
-      billNumber.length > 100
+      billReference.length > 100
     ) {
       return json({
         success: false,
-        message: "Report का विवरण या Bill Number निर्धारित सीमा से अधिक है।"
+        message: "Report का विवरण या Bill ID निर्धारित सीमा से अधिक है।"
       }, 400);
     }
 
@@ -146,11 +150,11 @@ export async function onRequestPost({ request, env }) {
       }, 404);
     }
 
-    // 4. Optional Bill Number Check
+    // 4. Bill ID या Bill Number से सही Bill खोजें
     let billId = null;
     let billSnapshot = {};
 
-    if (billNumber) {
+    if (billReference) {
       const bill = await env.DB.prepare(`
         SELECT
           b.id,
@@ -166,15 +170,23 @@ export async function onRequestPost({ request, env }) {
           c.address AS customer_address
         FROM bills b
         LEFT JOIN customers c ON c.id = b.customer_id
-        WHERE b.bill_number = ?
-          AND b.workspace_id = ?
+        WHERE
+          b.workspace_id = ?
+          AND (b.id = ? OR b.bill_number = ?)
+        ORDER BY
+          CASE WHEN b.id = ? THEN 0 ELSE 1 END
         LIMIT 1
-      `).bind(billNumber, workspaceId).first();
+      `).bind(
+        workspaceId,
+        billReference,
+        billReference,
+        billReference
+      ).first();
 
       if (!bill) {
         return json({
           success: false,
-          message: "इस दुकान में दिया गया Bill No. नहीं मिला। कृपया Bill Number जाँचें।"
+          message: "इस दुकान में दिया गया Bill ID या Bill Number नहीं मिला। कृपया जाँचें।"
         }, 404);
       }
 
@@ -185,10 +197,11 @@ export async function onRequestPost({ request, env }) {
         }, 400);
       }
 
-      // असली Database Bill ID
+      // Database का असली Bill ID
       billId = bill.id;
 
       billSnapshot = {
+        bill_id: bill.id,
         bill_number: bill.bill_number,
         customer_name: bill.customer_name,
         customer_mobile: bill.customer_mobile,
