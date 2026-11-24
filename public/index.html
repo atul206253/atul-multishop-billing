@@ -39,6 +39,7 @@ main{min-width:0}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 label{font-weight:bold;display:block;margin-bottom:5px}
 input,select{width:100%;padding:9px;border:1px solid #bdcddd;border-radius:6px}
+input[readonly]{background:#eef3f8;color:#52637a;cursor:not-allowed}
 .section{background:#0751a5;color:white;padding:8px;border-radius:6px;margin:14px 0 8px;font-weight:bold}
 table{width:100%;border-collapse:collapse}
 th,td{border:1px solid #d6e2ee;padding:8px;text-align:left}
@@ -263,7 +264,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
     <div><label>केंद्र का नाम</label><input id="sName"></div>
     <div><label>मालिक</label><input id="sOwner"></div>
     <div><label>पता</label><input id="sAddress"></div>
-    <div><label>मोबाइल</label><input id="sMobile"></div>
+    <div><label>मोबाइल (Login नंबर — बदल नहीं सकते)</label><input id="sMobile" readonly aria-readonly="true"><p class="small" style="margin:5px 0 0">यह नंबर आपके Login अकाउंट से लिया गया है।</p></div>
    </div>
    <div class="actions">
     <button class="green" id="saveSettings">सेटिंग सेव करें</button>
@@ -399,7 +400,8 @@ function startDashboard() {
   name: savedSettings.name || businessName,
   owner: savedSettings.owner || ownerName,
   address: savedSettings.address || address,
-  mobile: savedSettings.mobile || phone
+  // Login account mobile is fixed; saved local settings cannot override it.
+  mobile: user.mobile || phone
  };
 
  $("welcomeName").textContent = "Welcome, " + (user.name || "User");
@@ -738,7 +740,8 @@ function saveSettings() {
   name: $("sName").value.trim() || "जन सेवा केंद्र",
   owner: $("sOwner").value.trim(),
   address: $("sAddress").value.trim(),
-  mobile: $("sMobile").value.trim()
+  // Always preserve the mobile number from the logged-in account.
+  mobile: (currentUser && currentUser.mobile) || settings.mobile || ""
  };
 
  localStorage.setItem(SETS, JSON.stringify(settings));
