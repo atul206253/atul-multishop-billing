@@ -102,7 +102,7 @@ export async function onRequestPost({ request, env }) {
     const workspaceId = String(body.workspaceId || "").trim();
     const reason = String(body.reason || "").trim();
     const message = String(body.details || "").trim();
-    const billId = String(body.billId || "").trim();
+    const billNumber = String(body.billNumber || "").trim();
 
     if (!reportedUserId || !workspaceId || !reason || !message) {
       return json({
@@ -111,10 +111,14 @@ export async function onRequestPost({ request, env }) {
       }, 400);
     }
 
-    if (reason.length > 200 || message.length > 5000) {
+    if (
+      reason.length > 200 ||
+      message.length > 5000 ||
+      billNumber.length > 100
+    ) {
       return json({
         success: false,
-        message: "Report का कारण या विवरण निर्धारित सीमा से अधिक है।"
+        message: "Report का विवरण या Bill Number निर्धारित सीमा से अधिक है।"
       }, 400);
     }
 
@@ -142,10 +146,11 @@ export async function onRequestPost({ request, env }) {
       }, 404);
     }
 
-    // 4. Optional Bill Check
+    // 4. Optional Bill Number Check
+    let billId = null;
     let billSnapshot = {};
 
-    if (billId) {
+    if (billNumber) {
       const bill = await env.DB.prepare(`
         SELECT
           b.id,
@@ -161,15 +166,15 @@ export async function onRequestPost({ request, env }) {
           c.address AS customer_address
         FROM bills b
         LEFT JOIN customers c ON c.id = b.customer_id
-        WHERE b.id = ?
+        WHERE b.bill_number = ?
           AND b.workspace_id = ?
         LIMIT 1
-      `).bind(billId, workspaceId).first();
+      `).bind(billNumber, workspaceId).first();
 
       if (!bill) {
         return json({
           success: false,
-          message: "इस दुकान में दिया गया Bill ID नहीं मिला।"
+          message: "इस दुकान में दिया गया Bill No. नहीं मिला। कृपया Bill Number जाँचें।"
         }, 404);
       }
 
@@ -179,6 +184,9 @@ export async function onRequestPost({ request, env }) {
           message: "यह Bill चुने गए Operator का नहीं है।"
         }, 400);
       }
+
+      // असली Database Bill ID
+      billId = bill.id;
 
       billSnapshot = {
         bill_number: bill.bill_number,
@@ -221,7 +229,7 @@ export async function onRequestPost({ request, env }) {
       workspaceId,
       reportedUserId,
       admin.id,
-      billId || null,
+      billId,
       reason,
       reportDetails
     ).run();
@@ -229,7 +237,8 @@ export async function onRequestPost({ request, env }) {
     return json({
       success: true,
       message: "Operator के लिए Report सफलतापूर्वक दर्ज हो गई।",
-      reportId
+      reportId,
+      billId
     });
 
   } catch (error) {
