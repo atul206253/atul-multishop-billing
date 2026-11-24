@@ -230,11 +230,11 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
           </div>
 
           <div class="form-group">
-            <label for="newReportBillId">Bill ID (वैकल्पिक)</label>
+            <label for="newReportBillNumber">Bill No. (वैकल्पिक)</label>
             <input
-              id="newReportBillId"
+              id="newReportBillNumber"
               type="text"
-              placeholder="Bill ID यदि उपलब्ध हो">
+              placeholder="जैसे AJSC-1795494163032">
           </div>
 
           <div class="form-group full">
@@ -437,7 +437,7 @@ async function createAdminReport() {
   const target = $("reportTarget").value;
   const reason = $("newReportReason").value.trim();
   const details = $("newReportDetails").value.trim();
-  const billId = $("newReportBillId").value.trim();
+  const billNumber = $("newReportBillNumber").value.trim();
 
   if (!target) {
     alert("कृपया Operator और दुकान चुनें।");
@@ -481,7 +481,7 @@ async function createAdminReport() {
         workspaceId,
         reason,
         details,
-        billId:billId || null
+        billNumber:billNumber || null
       })
     });
 
@@ -495,7 +495,7 @@ async function createAdminReport() {
 
     $("newReportReason").value = "";
     $("newReportDetails").value = "";
-    $("newReportBillId").value = "";
+    $("newReportBillNumber").value = "";
 
     await loadAdmin();
 
