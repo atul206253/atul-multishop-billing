@@ -10,7 +10,7 @@ const json = (data, status = 200) =>
 
 function getCookie(request, name) {
   const cookie = request.headers.get("Cookie") || "";
-  const item = cookie.split(";").map(v => v.trim())
+  const item = (cookie || "").split(";").map(v => v.trim())
     .find(v => v.startsWith(name + "="));
   return item ? item.slice(name.length + 1) : null;
 }
@@ -20,12 +20,10 @@ async function sha256(value) {
     "SHA-256",
     new TextEncoder().encode(value)
   );
-
   let binary = "";
   for (const byte of new Uint8Array(digest)) {
     binary += String.fromCharCode(byte);
   }
-
   return btoa(binary);
 }
 
@@ -35,14 +33,13 @@ async function getAuth(request, env) {
   }
 
   const token = getCookie(request, "session");
-
   if (!token) {
     return { error: json({ success: false, message: "कृपया Login करें।" }, 401) };
   }
 
   const tokenHash = await sha256(token);
 
-  const session = await env.DB.prepare(`
+  const user = await env.DB.prepare(`
     SELECT s.user_id, s.expires_at, u.name, u.mobile, u.status
     FROM sessions s
     JOIN users u ON u.id = s.user_id
@@ -50,29 +47,25 @@ async function getAuth(request, env) {
     LIMIT 1
   `).bind(tokenHash).first();
 
-  if (!session || !session.expires_at ||
-      new Date(session.expires_at).getTime() <= Date.now() ||
-      session.status !== "active") {
+  if (!user || !user.expires_at ||
+      new Date(user.expires_at).getTime() <= Date.now() ||
+      user.status !== "active") {
     return { error: json({ success: false, message: "Login समाप्त हो गया है।" }, 401) };
   }
 
   const membership = await env.DB.prepare(`
-    SELECT m.workspace_id, m.role, m.status
-    FROM workspace_memberships m
-    WHERE m.user_id = ?
-      AND m.status = 'active'
-    ORDER BY m.created_at ASC
+    SELECT workspace_id
+    FROM workspace_memberships
+    WHERE user_id = ? AND status = 'active'
+    ORDER BY created_at ASC
     LIMIT 1
-  `).bind(session.user_id).first();
+  `).bind(user.user_id).first();
 
   if (!membership) {
     return { error: json({ success: false, message: "कोई सक्रिय Workspace नहीं मिला।" }, 403) };
   }
 
-  return {
-    user: session,
-    workspaceId: membership.workspace_id
-  };
+  return { user, workspaceId: membership.workspace_id };
 }
 
 export async function onRequestGet({ request, env }) {
@@ -81,15 +74,9 @@ export async function onRequestGet({ request, env }) {
     if (auth.error) return auth.error;
 
     const result = await env.DB.prepare(`
-      SELECT b.id, b.workspace_id, b.bill_number,
-             b.customer_name AS name,
-             b.customer_mobile AS mobile,
-             c.address,
-             b.subtotal, b.extra_fee, b.total,
-             b.payment_mode AS mode,
-             b.utr,
-             b.payment_status AS status,
-             b.created_at, b.created_by
+      SELECT b.id, b.bill_number, b.customer_name, b.customer_mobile,
+             b.subtotal, b.extra_fee, b.total, b.payment_mode,
+             b.utr, b.payment_status, b.created_at, c.address
       FROM bills b
       LEFT JOIN customers c ON c.id = b.customer_id
       WHERE b.workspace_id = ?
@@ -98,7 +85,7 @@ export async function onRequestGet({ request, env }) {
     `).bind(auth.workspaceId).all();
 
     const itemResult = await env.DB.prepare(`
-      SELECT bi.id, bi.bill_id, bi.service_name AS name, bi.amount
+      SELECT bi.bill_id, bi.service_name, bi.amount
       FROM bill_items bi
       JOIN bills b ON b.id = bi.bill_id
       WHERE b.workspace_id = ?
@@ -106,31 +93,29 @@ export async function onRequestGet({ request, env }) {
     `).bind(auth.workspaceId).all();
 
     const itemsByBill = {};
-
     for (const item of (itemResult.results || [])) {
       if (!itemsByBill[item.bill_id]) itemsByBill[item.bill_id] = [];
       itemsByBill[item.bill_id].push({
-        name: item.name,
+        name: item.service_name,
         amount: Number(item.amount || 0)
       });
     }
 
     const bills = (result.results || []).map(bill => ({
       id: bill.bill_number,
-      name: bill.name,
-      mobile: bill.mobile || "",
+      name: bill.customer_name,
+      mobile: bill.customer_mobile || "",
       address: bill.address || "",
       date: bill.created_at ? String(bill.created_at).slice(0, 10) : "",
-      mode: bill.mode || "",
+      mode: bill.payment_mode || "",
       utr: bill.utr || "",
-      status: String(bill.status).toLowerCase() === "paid" ? "Paid" : "Unpaid",
+      status: String(bill.payment_status).toLowerCase() === "paid" ? "Paid" : "Unpaid",
       services: itemsByBill[bill.id] || [],
       extra: Number(bill.extra_fee || 0),
       total: Number(bill.total || 0)
     }));
 
     return json({ success: true, bills });
-
   } catch (error) {
     return json({
       success: false,
@@ -146,8 +131,8 @@ export async function onRequestPost({ request, env }) {
     if (auth.error) return auth.error;
 
     const body = await request.json();
-
     const bill = body.bill || body;
+
     const billNumber = String(bill.id || "").trim();
     const customerName = String(bill.name || "").trim();
     const mobile = String(bill.mobile || "").trim();
@@ -176,12 +161,8 @@ export async function onRequestPost({ request, env }) {
     const extra = Math.max(0, Number(bill.extra) || 0);
     const subtotal = cleanServices.reduce((sum, item) => sum + item.amount, 0);
     const total = subtotal + extra;
-
     const paymentStatus =
       String(bill.status || "").toLowerCase() === "paid" ? "paid" : "unpaid";
-
-    const paymentMode = String(bill.mode || "Other").slice(0, 50);
-    const utr = String(bill.utr || "").slice(0, 150);
 
     const existing = await env.DB.prepare(`
       SELECT id FROM bills
@@ -204,69 +185,63 @@ export async function onRequestPost({ request, env }) {
     } else {
       customer = await env.DB.prepare(`
         SELECT id FROM customers
-        WHERE workspace_id = ? AND name = ? AND (mobile IS NULL OR mobile = '')
+        WHERE workspace_id = ? AND name = ?
+          AND (mobile IS NULL OR mobile = '')
         LIMIT 1
       `).bind(auth.workspaceId, customerName).first();
     }
 
-    const customerId = customer?.id || crypto.randomUUID();
+    const customerId = customer ? customer.id : crypto.randomUUID();
+    const databaseBillId = crypto.randomUUID();
 
     const statements = [];
 
     if (customer) {
-      statements.push(
-        env.DB.prepare(`
-          UPDATE customers
-          SET name = ?, mobile = ?, address = ?
-          WHERE id = ? AND workspace_id = ?
-        `).bind(customerName, mobile, address, customerId, auth.workspaceId)
-      );
+      statements.push(env.DB.prepare(`
+        UPDATE customers
+        SET name = ?, mobile = ?, address = ?
+        WHERE id = ? AND workspace_id = ?
+      `).bind(customerName, mobile, address, customerId, auth.workspaceId));
     } else {
-      statements.push(
-        env.DB.prepare(`
-          INSERT INTO customers (id, workspace_id, name, mobile, address)
-          VALUES (?, ?, ?, ?, ?)
-        `).bind(customerId, auth.workspaceId, customerName, mobile, address)
-      );
+      statements.push(env.DB.prepare(`
+        INSERT INTO customers (id, workspace_id, name, mobile, address)
+        VALUES (?, ?, ?, ?, ?)
+      `).bind(customerId, auth.workspaceId, customerName, mobile, address));
     }
 
-    statements.push(
-      env.DB.prepare(`
-        INSERT INTO bills (
-          id, workspace_id, customer_id, bill_number,
-          customer_name, customer_mobile, subtotal, extra_fee,
-          total, payment_mode, utr, payment_status, created_by
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        crypto.randomUUID(),
-        auth.workspaceId,
-        customerId,
-        billNumber,
-        customerName,
-        mobile,
-        subtotal,
-        extra,
-        total,
-        paymentMode,
-        utr,
-        paymentStatus,
-        auth.user.id || auth.user.user_id
+    statements.push(env.DB.prepare(`
+      INSERT INTO bills (
+        id, workspace_id, customer_id, bill_number,
+        customer_name, customer_mobile, subtotal, extra_fee,
+        total, payment_mode, utr, payment_status, created_by
       )
-    );
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      databaseBillId,
+      auth.workspaceId,
+      customerId,
+      billNumber,
+      customerName,
+      mobile,
+      subtotal,
+      extra,
+      total,
+      String(bill.mode || "Other").slice(0, 50),
+      String(bill.utr || "").slice(0, 150),
+      paymentStatus,
+      auth.user.user_id
+    ));
 
     for (const item of cleanServices) {
-      statements.push(
-        env.DB.prepare(`
-          INSERT INTO bill_items (id, bill_id, service_name, amount)
-          VALUES (?, ?, ?, ?)
-        `).bind(
-          crypto.randomUUID(),
-          billNumber,
-          item.name,
-          item.amount
-        )
-      );
+      statements.push(env.DB.prepare(`
+        INSERT INTO bill_items (id, bill_id, service_name, amount)
+        VALUES (?, ?, ?, ?)
+      `).bind(
+        crypto.randomUUID(),
+        databaseBillId,
+        item.name,
+        item.amount
+      ));
     }
 
     await env.DB.batch(statements);
@@ -276,7 +251,6 @@ export async function onRequestPost({ request, env }) {
       message: "बिल सर्वर पर सेव हो गया।",
       billNumber
     });
-
   } catch (error) {
     return json({
       success: false,
@@ -307,7 +281,6 @@ export async function onRequestDelete({ request, env }) {
       success: true,
       deleted: Number(result.meta?.changes || 0)
     });
-
   } catch (error) {
     return json({
       success: false,
