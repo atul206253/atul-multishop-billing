@@ -243,10 +243,10 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
    <div class="tablewrap">
     <table>
      <thead>
-      <tr><th>दिनांक</th><th>कारण</th><th>विवरण</th><th>बिल नंबर</th><th>Status</th><th>Admin Note</th></tr>
+      <tr><th>दिनांक</th><th>कारण</th><th>विवरण</th><th>बिल नंबर</th><th>Bill ID</th><th>Status</th><th>Admin Note</th></tr>
      </thead>
      <tbody id="customerMyReportRows">
-      <tr><td colspan="6">Reports लोड हो रही हैं...</td></tr>
+      <tr><td colspan="7">Reports लोड हो रही हैं...</td></tr>
      </tbody>
     </table>
    </div>
@@ -284,10 +284,10 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
    <div class="tablewrap">
     <table>
      <thead>
-      <tr><th>दिनांक</th><th>कारण</th><th>विवरण</th><th>बिल नंबर</th><th>Status</th><th>Admin Note</th></tr>
+      <tr><th>दिनांक</th><th>कारण</th><th>विवरण</th><th>बिल नंबर</th><th>Bill ID</th><th>Status</th><th>Admin Note</th></tr>
      </thead>
      <tbody id="myReportRows">
-      <tr><td colspan="6">Reports लोड हो रही हैं...</td></tr>
+      <tr><td colspan="7">Reports लोड हो रही हैं...</td></tr>
      </tbody>
     </table>
    </div>
@@ -529,7 +529,7 @@ async function loadMyReports() {
  reportTables.forEach(id => {
   const rows = $(id);
   if (rows) {
-   rows.innerHTML = `<tr><td colspan="6">Reports लोड हो रही हैं...</td></tr>`;
+   rows.innerHTML = `<tr><td colspan="7">Reports लोड हो रही हैं...</td></tr>`;
   }
  });
 
@@ -544,7 +544,7 @@ async function loadMyReports() {
   reportTables.forEach(id => {
    const rows = $(id);
    if (rows) {
-    rows.innerHTML = `<tr><td colspan="6">Reports लोड नहीं हो पाईं। पेज Refresh करें।</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="7">Reports लोड नहीं हो पाईं। पेज Refresh करें।</td></tr>`;
    }
   });
  }
@@ -563,7 +563,7 @@ function renderMyReports() {
  let html = "";
 
  if (!myReports.length) {
-  html = `<tr><td colspan="6">अभी आपके नाम पर कोई Report नहीं बनाई गई है।</td></tr>`;
+  html = `<tr><td colspan="7">अभी आपके नाम पर कोई Report नहीं बनाई गई है।</td></tr>`;
  } else {
   html = myReports.map(report => {
    let details = {};
@@ -591,7 +591,8 @@ function renderMyReports() {
       ${bill.customer_mobile ? `<br><b>मोबाइल:</b> ${safe(bill.customer_mobile)}` : ""}
       ${bill.customer_address ? `<br><b>पता:</b> ${safe(bill.customer_address)}` : ""}
      </td>
-     <td>${safe(bill.bill_number || report.bill_id || "-")}</td>
+     <td>${safe(bill.bill_number || "-")}</td>
+     <td>${safe(report.bill_id || "-")}</td>
      <td><span class="badge ${status[1]}">${safe(status[0])}</span></td>
      <td>${safe(report.admin_note || "अभी Admin Note नहीं है।")}</td>
     </tr>
