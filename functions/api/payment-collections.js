@@ -114,6 +114,11 @@ function textValue(value, max = 200) {
   return String(value ?? "").trim().slice(0, max);
 }
 
+function moneyValue(value) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? Math.round(number * 100) / 100 : NaN;
+}
+
 const settlementStatuses = [
   "Pending",
   "Received by Family",
@@ -169,6 +174,8 @@ async function handleRequest(request, env, method) {
           customer_mobile,
           customer_location,
           amount,
+          csc_charge,
+          final_amount,
           payment_mode,
           utr,
           received_by,
@@ -214,7 +221,12 @@ async function handleRequest(request, env, method) {
         20
       ).toLowerCase();
 
-      const amount = Number(body.amount);
+      // amount = ग्राहक से प्राप्त या ग्राहक को भेजी जाने वाली मूल रकम
+      const amount = moneyValue(body.amount);
+
+      // CSC चार्ज ऑपरेटर खुद दर्ज करेगा
+      const cscCharge = moneyValue(body.cscCharge ?? 0);
+
       const paymentMode = textValue(body.paymentMode, 50);
       const utr = textValue(body.utr, 120);
       const purpose = textValue(body.purpose, 500);
@@ -242,6 +254,30 @@ async function handleRequest(request, env, method) {
           message: "कृपया सही राशि दर्ज करें।"
         }, 400);
       }
+
+      if (
+        !Number.isFinite(cscCharge) ||
+        cscCharge < 0 ||
+        cscCharge > 100000000
+      ) {
+        return json({
+          success: false,
+          message: "CSC चार्ज सही दर्ज करें।"
+        }, 400);
+      }
+
+      if (transactionType === "received" && cscCharge > amount) {
+        return json({
+          success: false,
+          message: "Received भुगतान में CSC चार्ज प्राप्त रकम से ज्यादा नहीं हो सकता।"
+        }, 400);
+      }
+
+      // Received: मूल रकम में से चार्ज घटेगा
+      // Sent: मूल रकम में चार्ज जुड़ेगा
+      const finalAmount = transactionType === "received"
+        ? Math.round((amount - cscCharge) * 100) / 100
+        : Math.round((amount + cscCharge) * 100) / 100;
 
       if (!paymentModes.includes(paymentMode)) {
         return json({
@@ -329,6 +365,8 @@ async function handleRequest(request, env, method) {
           customer_mobile,
           customer_location,
           amount,
+          csc_charge,
+          final_amount,
           payment_mode,
           utr,
           received_by,
@@ -344,7 +382,7 @@ async function handleRequest(request, env, method) {
           recipient_location,
           transaction_status
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?, ?
         )
       `).bind(
@@ -355,6 +393,8 @@ async function handleRequest(request, env, method) {
         customerMobile,
         customerLocation,
         amount,
+        cscCharge,
+        finalAmount,
         paymentMode,
         utr,
         receivedBy,
@@ -376,7 +416,10 @@ async function handleRequest(request, env, method) {
         message: transactionType === "received"
           ? "पैसा प्राप्त होने का रिकॉर्ड सेव हो गया।"
           : "पैसा भेजने का रिकॉर्ड सेव हो गया।",
-        id
+        id,
+        amount,
+        cscCharge,
+        finalAmount
       }, 201);
     }
 
@@ -403,7 +446,7 @@ async function handleRequest(request, env, method) {
       }
 
       const existing = await env.DB.prepare(`
-        SELECT id, transaction_type
+        SELECT id, transaction_type, amount, csc_charge
         FROM payment_collections
         WHERE id = ? AND workspace_id = ?
         LIMIT 1
@@ -457,6 +500,38 @@ async function handleRequest(request, env, method) {
       if (body.settlementNote !== undefined) {
         updates.push("settlement_note = ?");
         values.push(textValue(body.settlementNote, 1000));
+      }
+
+      // CSC चार्ज बदलने पर Final Amount भी दोबारा निकलेगा
+      if (body.cscCharge !== undefined) {
+        const newCharge = moneyValue(body.cscCharge);
+
+        if (!Number.isFinite(newCharge) || newCharge < 0) {
+          return json({
+            success: false,
+            message: "CSC चार्ज सही दर्ज करें।"
+          }, 400);
+        }
+
+        if (
+          existing.transaction_type === "received" &&
+          newCharge > Number(existing.amount)
+        ) {
+          return json({
+            success: false,
+            message: "Received भुगतान में CSC चार्ज प्राप्त रकम से ज्यादा नहीं हो सकता।"
+          }, 400);
+        }
+
+        const newFinalAmount = existing.transaction_type === "received"
+          ? Number(existing.amount) - newCharge
+          : Number(existing.amount) + newCharge;
+
+        updates.push("csc_charge = ?");
+        values.push(newCharge);
+
+        updates.push("final_amount = ?");
+        values.push(Math.round(newFinalAmount * 100) / 100);
       }
 
       if (!updates.length) {
