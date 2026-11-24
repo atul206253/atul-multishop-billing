@@ -264,7 +264,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
     <div><label>केंद्र का नाम</label><input id="sName"></div>
     <div><label>मालिक</label><input id="sOwner"></div>
     <div><label>पता</label><input id="sAddress"></div>
-    <div><label>मोबाइल (Login नंबर — बदल नहीं सकते)</label><input id="sMobile" readonly aria-readonly="true"><p class="small" style="margin:5px 0 0">यह नंबर आपके Login अकाउंट से लिया गया है।</p></div>
+    <div><label>मोबाइल नंबर (दुकान / संपर्क)</label><input id="sMobile" type="tel" inputmode="numeric" maxlength="15" placeholder="दुकान का मोबाइल नंबर"><p class="small" style="margin:5px 0 0">यह नंबर बिल और दुकान की जानकारी में दिखेगा। Login मोबाइल नंबर इससे अलग रहेगा।</p></div>
    </div>
    <div class="actions">
     <button class="green" id="saveSettings">सेटिंग सेव करें</button>
@@ -400,8 +400,8 @@ function startDashboard() {
   name: savedSettings.name || businessName,
   owner: savedSettings.owner || ownerName,
   address: savedSettings.address || address,
-  // Login account mobile is fixed; saved local settings cannot override it.
-  mobile: user.mobile || phone
+  // Shop contact mobile can be changed independently of the login account.
+  mobile: savedSettings.mobile || phone || user.mobile || ""
  };
 
  $("welcomeName").textContent = "Welcome, " + (user.name || "User");
@@ -740,8 +740,8 @@ function saveSettings() {
   name: $("sName").value.trim() || "जन सेवा केंद्र",
   owner: $("sOwner").value.trim(),
   address: $("sAddress").value.trim(),
-  // Always preserve the mobile number from the logged-in account.
-  mobile: (currentUser && currentUser.mobile) || settings.mobile || ""
+  // This is the shop/contact number, not the account login number.
+  mobile: $("sMobile").value.trim()
  };
 
  localStorage.setItem(SETS, JSON.stringify(settings));
