@@ -117,11 +117,9 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
    <p id="brandAddress">पता उपलब्ध नहीं</p>
   </div>
  </div>
-
  <div class="contact">☎ <span id="brandMobile">-</span>
   <small>सभी प्रकार की सरकारी एवं ऑनलाइन सेवाएं</small>
  </div>
-
  <div class="account">
   <div class="accountInfo">
    <b id="welcomeName">Welcome</b><br>
@@ -186,7 +184,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
      <button class="blue" id="preview">🖨 प्रिंट रसीद</button>
      <button class="soft" id="reset">रीसेट</button>
     </div>
-    <p class="small">बिल इस ब्राउज़र में सेव होगा। प्रिंट विंडो से PDF भी सेव कर सकते हैं।</p>
+    <p class="small">बिल अब सुरक्षित रूप से सर्वर के D1 डेटाबेस में सेव होगा।</p>
    </div>
   </div>
 
@@ -274,7 +272,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
     <button class="blue" id="backup">JSON बैकअप डाउनलोड</button>
     <button class="red" id="wipe">सभी बिल हटाएं</button>
    </div>
-   <p class="small">ध्यान दें: इस समय बिल और सेटिंग इस ब्राउज़र में सेव होते हैं। ब्राउज़र डेटा हटने पर रिकॉर्ड मिट सकते हैं। नियमित बैकअप लें। दूसरे कंप्यूटर पर बिल अपने आप नहीं दिखेंगे।</p>
+   <p class="small">बिल सर्वर पर सेव होते हैं। JSON बैकअप भी नियमित रूप से डाउनलोड करें।</p>
   </div>
  </div>
 </section>
@@ -309,6 +307,7 @@ let bills = [];
 let settings = {};
 let STORAGE = "";
 let SETS = "";
+let saving = false;
 
 function showAuthError(message) {
  $("loading").hidden = true;
@@ -316,6 +315,26 @@ function showAuthError(message) {
  $("app").style.display = "none";
  $("authError").hidden = false;
  $("authErrorText").textContent = message || "कृपया दोबारा Login करें।";
+}
+
+async function apiRequest(url, options = {}) {
+ const response = await fetch(url, {
+  credentials: "same-origin",
+  cache: "no-store",
+  ...options,
+  headers: {
+   "Accept": "application/json",
+   ...(options.headers || {})
+  }
+ });
+
+ const data = await response.json().catch(() => ({}));
+
+ if (!response.ok || data.success === false) {
+  throw new Error(data.message || "Server से अनुरोध पूरा नहीं हुआ।");
+ }
+
+ return data;
 }
 
 async function checkLogin() {
@@ -354,23 +373,22 @@ async function checkLogin() {
   }
 
   currentWorkspace = workspaces[0];
-  startDashboard();
+  await startDashboard();
  } catch (error) {
   showAuthError("Server से संपर्क नहीं हो पाया। इंटरनेट जाँचकर दोबारा कोशिश करें।");
  }
 }
 
-function startDashboard() {
+async function startDashboard() {
  const w = currentWorkspace || {};
  const user = currentUser || {};
 
  const workspaceId = String(w.workspace_id || w.id || "default");
- const userId = String(user.id || "user");
+ const businessName = w.business_name || w.workspace_name || w.name || "जन सेवा केंद्र";
 
- // पुराने Atul Kendra के बिलों को पुराने storage key से पढ़ें।
  const isAtulWorkspace =
   workspaceId === "atul-default-workspace" ||
-  String(w.workspace_name || w.name || w.business_name || "").toLowerCase().includes("atul jan seva");
+  String(businessName).toLowerCase().includes("atul jan seva");
 
  STORAGE = isAtulWorkspace
   ? "atulkendra_billdata"
@@ -379,18 +397,6 @@ function startDashboard() {
  SETS = isAtulWorkspace
   ? "atulkendra_settings"
   : "billing_settings_" + workspaceId;
-
- try {
-  bills = JSON.parse(localStorage.getItem(STORAGE) || "[]");
-  if (!Array.isArray(bills)) bills = [];
- } catch {
-  bills = [];
- }
-
- const businessName = w.business_name || w.workspace_name || w.name || "जन सेवा केंद्र";
- const ownerName = w.owner_name || user.name || "";
- const address = w.address || "";
- const phone = w.phone || user.mobile || "";
 
  let savedSettings = {};
  try {
@@ -401,10 +407,9 @@ function startDashboard() {
 
  settings = {
   name: savedSettings.name || businessName,
-  owner: savedSettings.owner || ownerName,
-  address: savedSettings.address || address,
-  // Shop contact mobile can be changed independently of the login account.
-  mobile: savedSettings.mobile || phone || user.mobile || ""
+  owner: savedSettings.owner || w.owner_name || user.name || "",
+  address: savedSettings.address || w.address || "",
+  mobile: savedSettings.mobile || w.phone || user.mobile || ""
  };
 
  $("welcomeName").textContent = "Welcome, " + (user.name || "User");
@@ -414,10 +419,69 @@ function startDashboard() {
  applySettings();
  $("date").value = today();
  resetForm();
- render();
 
  $("loading").hidden = true;
  $("app").style.display = "block";
+
+ await syncBillsFromServer();
+}
+
+async function syncBillsFromServer() {
+ try {
+  const localBills = JSON.parse(localStorage.getItem(STORAGE) || "[]");
+  const oldBills = Array.isArray(localBills) ? localBills : [];
+
+  const serverData = await apiRequest("/api/bills");
+  let serverBills = Array.isArray(serverData.bills) ? serverData.bills : [];
+
+  const serverIds = new Set(serverBills.map(b => String(b.id)));
+
+  // पुराने ब्राउज़र वाले बिलों को पहली बार D1 में भेजें।
+  let migrated = 0;
+  for (const bill of oldBills) {
+   if (!bill || !bill.id || serverIds.has(String(bill.id))) continue;
+
+   try {
+    await apiRequest("/api/bills", {
+     method: "POST",
+     headers: {"Content-Type":"application/json"},
+     body: JSON.stringify({bill})
+    });
+    migrated++;
+    serverIds.add(String(bill.id));
+   } catch (error) {
+    // पहले से मौजूद बिल को दोबारा सेव नहीं करेंगे।
+    if (!String(error.message).includes("पहले से")) {
+     console.error("पुराना बिल भेजने में समस्या:", bill.id, error);
+    }
+   }
+  }
+
+  if (migrated) {
+   alert(migrated + " पुराने बिल सर्वर पर सेव कर दिए गए हैं।");
+  }
+
+  const refreshed = await apiRequest("/api/bills");
+  serverBills = Array.isArray(refreshed.bills) ? refreshed.bills : [];
+
+  bills = serverBills;
+  localStorage.setItem(STORAGE, JSON.stringify(bills));
+  render();
+
+ } catch (error) {
+  console.error(error);
+
+  try {
+   const localBills = JSON.parse(localStorage.getItem(STORAGE) || "[]");
+   bills = Array.isArray(localBills) ? localBills : [];
+  } catch {
+   bills = [];
+  }
+
+  render();
+  alert("सर्वर से बिल लोड नहीं हो पाए।\n" + error.message +
+        "\n\nइंटरनेट और Login जाँचकर पेज Refresh करें।");
+ }
 }
 
 async function logout() {
@@ -444,7 +508,6 @@ async function logout() {
   alert("Server से संपर्क नहीं हो पाया। कृपया दोबारा कोशिश करें।");
   buttons.forEach(id => { if ($(id)) $(id).disabled = false; });
  }
-
 }
 
 function persist() {
@@ -531,15 +594,37 @@ function makeBill() {
  };
 }
 
-function saveBill() {
+async function saveBill() {
+ if (saving) return;
+
  const bill = makeBill();
  if (!bill) return;
 
- bills.unshift(bill);
- persist();
- render();
- receipt(bill);
- resetForm();
+ saving = true;
+ $("save").disabled = true;
+ $("save").textContent = "सेव हो रहा है...";
+
+ try {
+  await apiRequest("/api/bills", {
+   method: "POST",
+   headers: {"Content-Type":"application/json"},
+   body: JSON.stringify({bill})
+  });
+
+  bills.unshift(bill);
+  persist();
+  render();
+  receipt(bill);
+  resetForm();
+
+ } catch (error) {
+  alert("बिल सर्वर पर सेव नहीं हुआ।\n" + error.message +
+        "\n\nबिल दोबारा सेव करने से पहले समस्या जाँचें।");
+ } finally {
+  saving = false;
+  $("save").disabled = false;
+  $("save").textContent = "✓ बिल सेव करें व रसीद प्रिंट";
+ }
 }
 
 function receipt(bill) {
@@ -683,11 +768,21 @@ function renderReport() {
   `कुल ${bills.length} बिल | कुल बिक्री ${fmt(total)} | प्राप्त भुगतान ${fmt(paid)} | बकाया ${fmt(total - paid)}`;
 }
 
-function deleteBill(id) {
- if (!confirm("क्या आप यह बिल हटाना चाहते हैं?")) return;
- bills = bills.filter(bill => bill.id !== id);
- persist();
- render();
+async function deleteBill(id) {
+ if (!confirm("क्या आप यह बिल सर्वर और Dashboard दोनों से हटाना चाहते हैं?")) return;
+
+ try {
+  await apiRequest("/api/bills?id=" + encodeURIComponent(id), {
+   method: "DELETE"
+  });
+
+  bills = bills.filter(bill => bill.id !== id);
+  persist();
+  render();
+  alert("बिल हटा दिया गया।");
+ } catch (error) {
+  alert("बिल नहीं हट पाया।\n" + error.message);
+ }
 }
 
 function openPage(id) {
@@ -743,7 +838,6 @@ function saveSettings() {
   name: $("sName").value.trim() || "जन सेवा केंद्र",
   owner: $("sOwner").value.trim(),
   address: $("sAddress").value.trim(),
-  // This is the shop/contact number, not the account login number.
   mobile: $("sMobile").value.trim()
  };
 
@@ -760,11 +854,25 @@ function backupData() {
  );
 }
 
-function wipeBills() {
- if (!confirm("सभी बिल रिकॉर्ड स्थायी रूप से हटाएं?")) return;
- bills = [];
- persist();
- render();
+async function wipeBills() {
+ if (!confirm("क्या आप इस Workspace के सभी बिल सर्वर और Dashboard दोनों से स्थायी रूप से हटाना चाहते हैं?")) return;
+
+ try {
+  for (const bill of [...bills]) {
+   await apiRequest("/api/bills?id=" + encodeURIComponent(bill.id), {
+    method: "DELETE"
+   });
+  }
+
+  bills = [];
+  persist();
+  render();
+  alert("सभी बिल हटा दिए गए।");
+ } catch (error) {
+  alert("कुछ बिल हटाने में समस्या हुई।\n" + error.message +
+        "\nकृपया बिल इतिहास देखकर बाकी रिकॉर्ड जाँचें।");
+  await syncBillsFromServer();
+ }
 }
 
 document.querySelectorAll("nav button").forEach(button => {
@@ -817,7 +925,6 @@ $("pendingLogout").addEventListener("click", logout);
 $("errorLogout").addEventListener("click", () => location.replace("/login.html"));
 $("retryAuth").addEventListener("click", checkLogin);
 
-// पहले Server से Login की पुष्टि होगी, उसके बाद ही Dashboard दिखेगा।
 checkLogin();
 </script>
 </body>
