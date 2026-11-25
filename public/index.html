@@ -1,28 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="hi">
-
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Online Billing Software</title>
+<title>Billing Dashboard</title>
 
-<meta name="description" content="Shop Billing Generator - दुकानदारों और जन सेवा केंद्रों के लिए आसान ऑनलाइन बिलिंग सॉफ्टवेयर। बिल बनाएं, ग्राहक रिकॉर्ड रखें और पेमेंट मैनेज करें।">
-
-<link rel="canonical" href="https://atul-bill-generator.pages.dev/">
-
-
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "Shop Billing Generator",
-  "alternateName": "Online Billing Software",
-  "url": "https://atul-bill-generator.pages.dev/"
-}
-</script>
-
- 
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,"Noto Sans Devanagari",sans-serif;background:#f1f6fc;color:#142d4b}
@@ -135,11 +117,6 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
  #printReceipt p{line-height:1.6}
 }
 </style>
-
-
-<meta name="google-site-verification" content="ozKDa4Hm9I6Gbg2Au9WAtmpXvQ36g3CuGfbYvNTD-A0" />
-
- 
 </head>
 
 <body>
@@ -414,12 +391,21 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
    </div>
 
    <div id="receivedFields">
-    <div class="section">⬇ ग्राहक से पैसा प्राप्त होने की जानकारी</div>
+    <div class="section">⬇ ग्राहक / मित्र / परिवार से पैसा प्राप्त होने की जानकारी</div>
     <div class="fields">
-     <div><label>ग्राहक का नाम *</label><input id="paymentCustomer" placeholder="ग्राहक का नाम"></div>
-     <div><label>ग्राहक का मोबाइल</label><input id="paymentCustomerMobile" maxlength="15" inputmode="numeric" placeholder="मोबाइल नंबर"></div>
-     <div><label>ग्राहक की लोकेशन</label><input id="paymentCustomerLocation" placeholder="जैसे Delhi, Etawah"></div>
-     <div><label>पैसा किसने लिया?</label><input id="paymentReceivedBy" placeholder="जैसे Atul / परिवार का सदस्य"></div>
+     <div>
+      <label>पैसा किससे प्राप्त हुआ? *</label>
+      <select id="paymentCustomerRelation">
+       <option value="ग्राहक">ग्राहक</option>
+       <option value="मित्र">मित्र / दोस्त</option>
+       <option value="परिवार">परिवार का सदस्य</option>
+       <option value="अन्य">अन्य व्यक्ति</option>
+      </select>
+     </div>
+     <div><label>नाम *</label><input id="paymentCustomer" placeholder="ग्राहक / मित्र / परिवार के सदस्य का नाम"></div>
+     <div><label>मोबाइल नंबर</label><input id="paymentCustomerMobile" maxlength="15" inputmode="numeric" placeholder="मोबाइल नंबर"></div>
+     <div><label>पता / लोकेशन</label><input id="paymentCustomerLocation" placeholder="जैसे Delhi, Etawah"></div>
+     <div><label>पैसा किसने प्राप्त किया?</label><input id="paymentReceivedBy" placeholder="जैसे Atul / परिवार का सदस्य"></div>
      <div>
       <label>पैसा किसके पास गया?</label>
       <select id="paymentWentTo">
@@ -447,12 +433,21 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
    </div>
 
    <div id="sentFields" class="paymentHidden">
-    <div class="section">⬆ पैसा भेजने / भुगतान करने की जानकारी</div>
+    <div class="section">⬆ ग्राहक / मित्र / परिवार को पैसा भेजने / भुगतान करने की जानकारी</div>
     <div class="fields">
      <div><label>पैसा किसने भेजा?</label><input id="paymentPaidBy" placeholder="जैसे Atul / दुकान / कर्मचारी"></div>
-     <div><label>किसको पैसा भेजा? *</label><input id="paymentRecipient" placeholder="व्यक्ति या दुकान का नाम"></div>
-     <div><label>प्राप्तकर्ता का मोबाइल नंबर</label><input id="paymentRecipientMobile" maxlength="15" inputmode="numeric" placeholder="मोबाइल नंबर"></div>
-     <div><label>प्राप्तकर्ता की लोकेशन</label><input id="paymentRecipientLocation" placeholder="जैसे Delhi, Etawah"></div>
+     <div>
+      <label>भुगतान किसको किया? *</label>
+      <select id="paymentRecipientRelation">
+       <option value="ग्राहक">ग्राहक</option>
+       <option value="मित्र">मित्र / दोस्त</option>
+       <option value="परिवार">परिवार का सदस्य</option>
+       <option value="अन्य">अन्य व्यक्ति / दुकान</option>
+      </select>
+     </div>
+     <div><label>नाम *</label><input id="paymentRecipient" placeholder="ग्राहक / मित्र / परिवार के सदस्य का नाम"></div>
+     <div><label>मोबाइल नंबर</label><input id="paymentRecipientMobile" maxlength="15" inputmode="numeric" placeholder="मोबाइल नंबर"></div>
+     <div><label>पता / लोकेशन</label><input id="paymentRecipientLocation" placeholder="जैसे Delhi, Etawah"></div>
      <div style="grid-column:1/-1">
       <label>भुगतान का कारण / विवरण</label>
       <input id="paymentPurpose" placeholder="जैसे सामान खरीदा, दुकान का भुगतान, ग्राहक को Refund">
@@ -1033,7 +1028,7 @@ function receipt(bill) {
   </div>
 
   <div class="receiptFoot">
-   <span>ग्राहक द्वारा लेन-देन की पुष्टि</span>
+   <span>ग्राहक के हस्ताक्षर</span>
    <span>🙏 आपका विश्वास, हमारी पहचान 🙏<br><b>${safe(settings.owner)}</b></span>
   </div>
  `;
@@ -1269,6 +1264,7 @@ function resetPaymentForm() {
  $("paymentMode").value = "Paytm QR";
  $("paymentUtr").value = "";
 
+ $("paymentCustomerRelation").value = "ग्राहक";
  $("paymentCustomer").value = "";
  $("paymentCustomerMobile").value = "";
  $("paymentCustomerLocation").value = "";
@@ -1278,6 +1274,7 @@ function resetPaymentForm() {
  $("paymentSettlementNote").value = "";
 
  $("paymentPaidBy").value = currentUser?.name || "";
+ $("paymentRecipientRelation").value = "ग्राहक";
  $("paymentRecipient").value = "";
  $("paymentRecipientMobile").value = "";
  $("paymentRecipientLocation").value = "";
@@ -1537,12 +1534,12 @@ function printPaymentReceipt(id) {
    </div>
 
    <p style="margin-top:20px">
-    <b>नोट:</b> यह रसीद केवल दर्ज किए गए लेन-देन का रिकॉर्ड है। कृपया काउंटर छोड़ने से पहले प्राप्त की गई नकदी एवं सामान को अच्छी तरह जाँच
-लें। काउंटर छोड़ने के बाद किसी भी प्रकार के बदलाव या शिकायत पर विचार संभव नहीं होगा।
+    <b>नोट:</b> यह रसीद दर्ज किए गए लेन-देन का रिकॉर्ड है।
+    बैंक या UPI भुगतान की स्वतंत्र पुष्टि का विकल्प नहीं है।
    </p>
 
    <div class="receiptFoot">
-    <span>ग्राहक द्वारा लेन-देन की पुष्टि</span>
+    <span>ग्राहक के हस्ताक्षर</span>
     <span style="text-align:right">अधिकृत हस्ताक्षर<br><br><b>${safe(settings.owner || settings.name || "")}</b></span>
    </div>
 
@@ -1600,7 +1597,9 @@ async function savePaymentRecord() {
  };
 
  if (type === "received") {
-  body.customerName = $("paymentCustomer").value.trim();
+  const customerRelation = $("paymentCustomerRelation").value;
+  const customerPersonName = $("paymentCustomer").value.trim();
+  body.customerName = customerRelation + " - " + customerPersonName;
   body.customerMobile = $("paymentCustomerMobile").value.trim();
   body.customerLocation = $("paymentCustomerLocation").value.trim();
   body.receivedBy = $("paymentReceivedBy").value.trim();
@@ -1609,19 +1608,21 @@ async function savePaymentRecord() {
   body.settlementNote = $("paymentSettlementNote").value.trim();
 
   if (!body.customerName) {
-   alert("ग्राहक का नाम दर्ज करें।");
+   alert("ग्राहक / मित्र / परिवार के सदस्य का नाम दर्ज करें।");
    $("paymentCustomer").focus();
    return;
   }
  } else {
   body.paidBy = $("paymentPaidBy").value.trim();
-  body.recipientName = $("paymentRecipient").value.trim();
+  const recipientRelation = $("paymentRecipientRelation").value;
+  const recipientPersonName = $("paymentRecipient").value.trim();
+  body.recipientName = recipientRelation + " - " + recipientPersonName;
   body.recipientMobile = $("paymentRecipientMobile").value.trim();
   body.recipientLocation = $("paymentRecipientLocation").value.trim();
   body.purpose = $("paymentPurpose").value.trim();
 
   if (!body.recipientName) {
-   alert("जिसे पैसा भेजा है उसका नाम दर्ज करें।");
+   alert("जिस ग्राहक / मित्र / परिवार के सदस्य को पैसा भेजा है उसका नाम दर्ज करें।");
    $("paymentRecipient").focus();
    return;
   }
