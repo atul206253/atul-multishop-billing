@@ -1,618 +1,272 @@
-
-const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store"
-    }
-  });
+const json = (data, status = 200) => new Response(JSON.stringify(data), {
+  status,
+  headers: {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store"
+  }
+});
 
 function getCookie(request, name) {
-  const cookieHeader = request.headers.get("Cookie") || "";
-
-  for (const part of cookieHeader.split(";")) {
-    const index = part.indexOf("=");
-    if (index === -1) continue;
-
-    const key = part.slice(0, index).trim();
-    const value = part.slice(index + 1).trim();
-
-    if (key === name) return decodeURIComponent(value);
-  }
-
-  return "";
+  const cookie = request.headers.get("Cookie") || "";
+  const item = cookie.split(";").map(v => v.trim())
+    .find(v => v.startsWith(name + "="));
+  return item ? item.slice(name.length + 1) : null;
 }
 
-async function authenticate(request, env) {
-  const token = getCookie(request, "session");
-
-  if (!token) {
-    return {
-      error: json({ success: false, message: "Login आवश्यक है।" }, 401)
-    };
-  }
-
-  const hashBuffer = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(token)
-  );
-
-  const bytes = new Uint8Array(hashBuffer);
+async function sha256(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   let binary = "";
+  for (const byte of new Uint8Array(digest)) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
 
-  for (const byte of bytes) binary += String.fromCharCode(byte);
+async function getContext(request, env) {
+  if (!env.DB) return { error: json({ success: false, message: "Database binding नहीं मिला।" }, 500) };
 
-  const tokenHash = btoa(binary);
+  const token = getCookie(request, "session");
+  if (!token) return { error: json({ success: false, message: "कृपया Login करें।" }, 401) };
 
-  const session = await env.DB.prepare(`
-    SELECT
-      s.id AS session_id,
-      s.user_id,
-      s.expires_at,
-      u.name,
-      u.mobile,
-      u.status AS user_status
+  const tokenHash = await sha256(token);
+  const user = await env.DB.prepare(`
+    SELECT s.user_id, s.expires_at, u.name, u.mobile, u.status, u.is_admin
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.token_hash = ?
     LIMIT 1
   `).bind(tokenHash).first();
 
-  if (!session || session.user_status !== "active") {
-    return {
-      error: json({
-        success: false,
-        message: "Login समाप्त है। दोबारा Login करें।"
-      }, 401)
-    };
+  if (!user || !user.expires_at || new Date(user.expires_at).getTime() <= Date.now() || user.status !== "active") {
+    return { error: json({ success: false, message: "Login समाप्त हो गया है। कृपया दोबारा Login करें।" }, 401) };
   }
 
-  if (new Date(session.expires_at).getTime() <= Date.now()) {
-    await env.DB.prepare(
-      "DELETE FROM sessions WHERE id = ?"
-    ).bind(session.session_id).run();
-
-    return {
-      error: json({
-        success: false,
-        message: "Login की अवधि समाप्त हो गई है।"
-      }, 401)
-    };
-  }
-
-  const membership = await env.DB.prepare(`
-    SELECT
-      m.workspace_id,
-      m.role,
-      w.name AS workspace_name
+  let membership = await env.DB.prepare(`
+    SELECT m.workspace_id
     FROM workspace_memberships m
     JOIN workspaces w ON w.id = m.workspace_id
-    WHERE m.user_id = ?
-      AND m.status = 'active'
-      AND w.status = 'active'
+    WHERE m.user_id = ? AND m.status = 'active' AND w.status = 'active'
     ORDER BY m.created_at ASC
     LIMIT 1
-  `).bind(session.user_id).first();
+  `).bind(user.user_id).first();
 
-  if (!membership) {
-    return {
-      error: json({
-        success: false,
-        message: "कोई सक्रिय Workspace नहीं मिला।"
-      }, 403)
-    };
+  // Main Admin / workspace owner के लिए सुरक्षित fallback.
+  if (!membership?.workspace_id) {
+    membership = await env.DB.prepare(`
+      SELECT id AS workspace_id
+      FROM workspaces
+      WHERE owner_user_id = ? AND status = 'active'
+      ORDER BY created_at ASC
+      LIMIT 1
+    `).bind(user.user_id).first();
   }
 
-  return {
-    user: session,
-    workspace: membership
-  };
+  if (!membership?.workspace_id) {
+    return { error: json({ success: false, message: "आपका Active Workspace नहीं मिला। Admin से संपर्क करें।" }, 403) };
+  }
+
+  return { user, workspaceId: membership.workspace_id };
 }
 
-function textValue(value, max = 200) {
+function clean(value, max = 500) {
   return String(value ?? "").trim().slice(0, max);
 }
 
-function moneyValue(value) {
-  const number = Number(value ?? 0);
-  return Number.isFinite(number) ? Math.round(number * 100) / 100 : NaN;
+function validMobile(value) {
+  return !value || /^[0-9+() -]{7,18}$/.test(value);
 }
 
-const settlementStatuses = [
-  "Pending",
-  "Received by Family",
-  "Transferred to Shop",
-  "Settled"
-];
-
-const transactionStatuses = [
-  "Completed",
-  "Pending",
-  "Failed"
-];
-
-const paymentModes = [
-  "Paytm QR",
-  "UPI QR",
-  "UPI ID",
-  "Mobile Number",
-  "Cash",
-  "Bank Transfer",
-  "Card",
-  "Other"
-];
-
-const transactionTypes = [
-  "received",
-  "sent"
-];
-
-async function handleRequest(request, env, method) {
-  try {
-    if (!env.DB) {
-      return json({
-        success: false,
-        message: "Database उपलब्ध नहीं है।"
-      }, 500);
-    }
-
-    const auth = await authenticate(request, env);
-    if (auth.error) return auth.error;
-
-    const userId = auth.user.user_id;
-    const workspaceId = auth.workspace.workspace_id;
-
-    // GET: Workspace के सभी Payment Register रिकॉर्ड
-    if (method === "GET") {
-      const result = await env.DB.prepare(`
-        SELECT
-          id,
-          workspace_id,
-          created_by,
-          customer_name,
-          customer_mobile,
-          customer_location,
-          amount,
-          csc_charge,
-          final_amount,
-          payment_mode,
-          utr,
-          received_by,
-          money_went_to,
-          settlement_status,
-          settlement_note,
-          received_at,
-          created_at,
-          updated_at,
-          transaction_type,
-          purpose,
-          paid_by,
-          recipient_name,
-          recipient_mobile,
-          recipient_location,
-          transaction_status
-        FROM payment_collections
-        WHERE workspace_id = ?
-        ORDER BY received_at DESC, created_at DESC
-      `).bind(workspaceId).all();
-
-      return json({
-        success: true,
-        collections: result.results || []
-      });
-    }
-
-    // POST: नया लेन-देन सेव करें
-    if (method === "POST") {
-      let body;
-
-      try {
-        body = await request.json();
-      } catch {
-        return json({
-          success: false,
-          message: "गलत JSON डेटा।"
-        }, 400);
-      }
-
-      const transactionType = textValue(
-        body.transactionType || "received",
-        20
-      ).toLowerCase();
-
-      // amount = ग्राहक से प्राप्त या ग्राहक को भेजी जाने वाली मूल रकम
-      const amount = moneyValue(body.amount);
-
-      // CSC चार्ज ऑपरेटर खुद दर्ज करेगा
-      const cscCharge = moneyValue(body.cscCharge ?? 0);
-
-      const paymentMode = textValue(body.paymentMode, 50);
-      const utr = textValue(body.utr, 120);
-      const purpose = textValue(body.purpose, 500);
-
-      const transactionStatus = textValue(
-        body.transactionStatus || "Completed",
-        30
-      );
-
-      const receivedAt = textValue(
-        body.receivedAt || new Date().toISOString(),
-        40
-      );
-
-      if (!transactionTypes.includes(transactionType)) {
-        return json({
-          success: false,
-          message: "लेन-देन का प्रकार सही नहीं है।"
-        }, 400);
-      }
-
-      if (!Number.isFinite(amount) || amount <= 0 || amount > 100000000) {
-        return json({
-          success: false,
-          message: "कृपया सही राशि दर्ज करें।"
-        }, 400);
-      }
-
-      if (
-        !Number.isFinite(cscCharge) ||
-        cscCharge < 0 ||
-        cscCharge > 100000000
-      ) {
-        return json({
-          success: false,
-          message: "CSC चार्ज सही दर्ज करें।"
-        }, 400);
-      }
-
-      if (transactionType === "received" && cscCharge > amount) {
-        return json({
-          success: false,
-          message: "Received भुगतान में CSC चार्ज प्राप्त रकम से ज्यादा नहीं हो सकता।"
-        }, 400);
-      }
-
-      // Received: मूल रकम में से चार्ज घटेगा
-      // Sent: मूल रकम में चार्ज जुड़ेगा
-      const finalAmount = transactionType === "received"
-        ? Math.round((amount - cscCharge) * 100) / 100
-        : Math.round((amount + cscCharge) * 100) / 100;
-
-      if (!paymentModes.includes(paymentMode)) {
-        return json({
-          success: false,
-          message: "Payment Mode सही चुनें।"
-        }, 400);
-      }
-
-      if (!transactionStatuses.includes(transactionStatus)) {
-        return json({
-          success: false,
-          message: "Transaction Status सही नहीं है।"
-        }, 400);
-      }
-
-      if (Number.isNaN(Date.parse(receivedAt))) {
-        return json({
-          success: false,
-          message: "तारीख सही दर्ज करें।"
-        }, 400);
-      }
-
-      let customerName = "";
-      let customerMobile = "";
-      let customerLocation = "";
-      let receivedBy = "";
-      let moneyWentTo = "";
-      let settlementStatus = "Pending";
-      let settlementNote = "";
-
-      let paidBy = "";
-      let recipientName = "";
-      let recipientMobile = "";
-      let recipientLocation = "";
-
-      if (transactionType === "received") {
-        customerName = textValue(body.customerName, 150);
-        customerMobile = textValue(body.customerMobile, 20);
-        customerLocation = textValue(body.customerLocation, 250);
-        receivedBy = textValue(body.receivedBy, 150);
-        moneyWentTo = textValue(body.moneyWentTo, 150);
-
-        settlementStatus = textValue(
-          body.settlementStatus || "Pending",
-          60
-        );
-
-        settlementNote = textValue(body.settlementNote, 1000);
-
-        if (!customerName) {
-          return json({
-            success: false,
-            message: "ग्राहक का नाम जरूरी है।"
-          }, 400);
-        }
-
-        if (!settlementStatuses.includes(settlementStatus)) {
-          return json({
-            success: false,
-            message: "Settlement Status सही नहीं है।"
-          }, 400);
-        }
-      } else {
-        paidBy = textValue(body.paidBy, 150);
-        recipientName = textValue(body.recipientName, 150);
-        recipientMobile = textValue(body.recipientMobile, 20);
-        recipientLocation = textValue(body.recipientLocation, 250);
-
-        if (!recipientName) {
-          return json({
-            success: false,
-            message: "जिसे पैसा भेजा है उसका नाम जरूरी है।"
-          }, 400);
-        }
-      }
-
-      const id = crypto.randomUUID();
-
-      await env.DB.prepare(`
-        INSERT INTO payment_collections (
-          id,
-          workspace_id,
-          created_by,
-          customer_name,
-          customer_mobile,
-          customer_location,
-          amount,
-          csc_charge,
-          final_amount,
-          payment_mode,
-          utr,
-          received_by,
-          money_went_to,
-          settlement_status,
-          settlement_note,
-          received_at,
-          transaction_type,
-          purpose,
-          paid_by,
-          recipient_name,
-          recipient_mobile,
-          recipient_location,
-          transaction_status
-        ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, ?, ?, ?
-        )
-      `).bind(
-        id,
-        workspaceId,
-        userId,
-        customerName,
-        customerMobile,
-        customerLocation,
-        amount,
-        cscCharge,
-        finalAmount,
-        paymentMode,
-        utr,
-        receivedBy,
-        moneyWentTo,
-        settlementStatus,
-        settlementNote,
-        receivedAt,
-        transactionType,
-        purpose,
-        paidBy,
-        recipientName,
-        recipientMobile,
-        recipientLocation,
-        transactionStatus
-      ).run();
-
-      return json({
-        success: true,
-        message: transactionType === "received"
-          ? "पैसा प्राप्त होने का रिकॉर्ड सेव हो गया।"
-          : "पैसा भेजने का रिकॉर्ड सेव हो गया।",
-        id,
-        amount,
-        cscCharge,
-        finalAmount
-      }, 201);
-    }
-
-    // PATCH: Settlement या Transaction Status अपडेट
-    if (method === "PATCH") {
-      let body;
-
-      try {
-        body = await request.json();
-      } catch {
-        return json({
-          success: false,
-          message: "गलत JSON डेटा।"
-        }, 400);
-      }
-
-      const id = textValue(body.id, 100);
-
-      if (!id) {
-        return json({
-          success: false,
-          message: "रिकॉर्ड ID जरूरी है।"
-        }, 400);
-      }
-
-      const existing = await env.DB.prepare(`
-        SELECT id, transaction_type, amount, csc_charge
-        FROM payment_collections
-        WHERE id = ? AND workspace_id = ?
-        LIMIT 1
-      `).bind(id, workspaceId).first();
-
-      if (!existing) {
-        return json({
-          success: false,
-          message: "रिकॉर्ड नहीं मिला।"
-        }, 404);
-      }
-
-      const updates = [];
-      const values = [];
-
-      if (body.transactionStatus !== undefined) {
-        const status = textValue(body.transactionStatus, 30);
-
-        if (!transactionStatuses.includes(status)) {
-          return json({
-            success: false,
-            message: "Transaction Status सही नहीं है।"
-          }, 400);
-        }
-
-        updates.push("transaction_status = ?");
-        values.push(status);
-      }
-
-      if (body.settlementStatus !== undefined) {
-        if (existing.transaction_type !== "received") {
-          return json({
-            success: false,
-            message: "Settlement Status केवल प्राप्त भुगतान में लागू है।"
-          }, 400);
-        }
-
-        const status = textValue(body.settlementStatus, 60);
-
-        if (!settlementStatuses.includes(status)) {
-          return json({
-            success: false,
-            message: "Settlement Status सही नहीं है।"
-          }, 400);
-        }
-
-        updates.push("settlement_status = ?");
-        values.push(status);
-      }
-
-      if (body.settlementNote !== undefined) {
-        updates.push("settlement_note = ?");
-        values.push(textValue(body.settlementNote, 1000));
-      }
-
-      // CSC चार्ज बदलने पर Final Amount भी दोबारा निकलेगा
-      if (body.cscCharge !== undefined) {
-        const newCharge = moneyValue(body.cscCharge);
-
-        if (!Number.isFinite(newCharge) || newCharge < 0) {
-          return json({
-            success: false,
-            message: "CSC चार्ज सही दर्ज करें।"
-          }, 400);
-        }
-
-        if (
-          existing.transaction_type === "received" &&
-          newCharge > Number(existing.amount)
-        ) {
-          return json({
-            success: false,
-            message: "Received भुगतान में CSC चार्ज प्राप्त रकम से ज्यादा नहीं हो सकता।"
-          }, 400);
-        }
-
-        const newFinalAmount = existing.transaction_type === "received"
-          ? Number(existing.amount) - newCharge
-          : Number(existing.amount) + newCharge;
-
-        updates.push("csc_charge = ?");
-        values.push(newCharge);
-
-        updates.push("final_amount = ?");
-        values.push(Math.round(newFinalAmount * 100) / 100);
-      }
-
-      if (!updates.length) {
-        return json({
-          success: false,
-          message: "अपडेट करने के लिए कोई जानकारी नहीं मिली।"
-        }, 400);
-      }
-
-      updates.push("updated_at = CURRENT_TIMESTAMP");
-
-      values.push(id, workspaceId);
-
-      await env.DB.prepare(`
-        UPDATE payment_collections
-        SET ${updates.join(", ")}
-        WHERE id = ? AND workspace_id = ?
-      `).bind(...values).run();
-
-      return json({
-        success: true,
-        message: "लेन-देन अपडेट हो गया।"
-      });
-    }
-
-    // DELETE: रिकॉर्ड हटाएं
-    if (method === "DELETE") {
-      const url = new URL(request.url);
-      const id = textValue(url.searchParams.get("id"), 100);
-
-      if (!id) {
-        return json({
-          success: false,
-          message: "रिकॉर्ड ID जरूरी है।"
-        }, 400);
-      }
-
-      const result = await env.DB.prepare(`
-        DELETE FROM payment_collections
-        WHERE id = ? AND workspace_id = ?
-      `).bind(id, workspaceId).run();
-
-      if (!result.meta || result.meta.changes === 0) {
-        return json({
-          success: false,
-          message: "रिकॉर्ड नहीं मिला।"
-        }, 404);
-      }
-
-      return json({
-        success: true,
-        message: "लेन-देन रिकॉर्ड हटा दिया गया।"
-      });
-    }
-
-    return json({
-      success: false,
-      message: "Method स्वीकार नहीं है।"
-    }, 405);
-
-  } catch (error) {
-    return json({
-      success: false,
-      message: "Server में समस्या हुई।",
-      error: String(error.message || error)
-    }, 500);
-  }
+function finalAmount(type, amount, charge) {
+  return type === "received" ? amount - charge : amount + charge;
 }
 
 export async function onRequestGet({ request, env }) {
-  return handleRequest(request, env, "GET");
+  try {
+    const context = await getContext(request, env);
+    if (context.error) return context.error;
+
+    const result = await env.DB.prepare(`
+      SELECT *
+      FROM payment_collections
+      WHERE workspace_id = ?
+      ORDER BY COALESCE(received_at, created_at) DESC
+      LIMIT 2000
+    `).bind(context.workspaceId).all();
+
+    return json({ success: true, collections: result.results || [] });
+  } catch (error) {
+    return json({ success: false, message: "Payment Records लोड नहीं हुए।", error: String(error.message || error) }, 500);
+  }
 }
 
 export async function onRequestPost({ request, env }) {
-  return handleRequest(request, env, "POST");
+  try {
+    const context = await getContext(request, env);
+    if (context.error) return context.error;
+
+    let body;
+    try { body = await request.json(); }
+    catch { return json({ success: false, message: "गलत Request Data।" }, 400); }
+
+    const type = body.transactionType === "sent" ? "sent" : "received";
+    const amount = Number(body.amount);
+    const charge = Number(body.cscCharge ?? 0);
+    const mode = clean(body.paymentMode, 50);
+    const status = clean(body.transactionStatus || "Completed", 30);
+    const receivedAt = clean(body.receivedAt, 50) || new Date().toISOString();
+
+    if (!Number.isFinite(amount) || amount <= 0) return json({ success: false, message: "राशि सही दर्ज करें।" }, 400);
+    if (!Number.isFinite(charge) || charge < 0) return json({ success: false, message: "CSC Charge सही दर्ज करें।" }, 400);
+    if (type === "received" && charge > amount) return json({ success: false, message: "प्राप्त राशि से CSC Charge अधिक नहीं हो सकता।" }, 400);
+    if (!mode) return json({ success: false, message: "Payment Mode चुनें।" }, 400);
+    if (!["Completed", "Pending", "Failed"].includes(status)) return json({ success: false, message: "Transaction Status सही नहीं है।" }, 400);
+
+    let customerName = "";
+    let customerMobile = "";
+    let customerLocation = "";
+    let receivedBy = "";
+    let moneyWentTo = "";
+    let settlementStatus = "Pending";
+    let settlementNote = "";
+    let paidBy = "";
+    let purpose = "";
+    let recipientName = "";
+    let recipientMobile = "";
+    let recipientLocation = "";
+
+    if (type === "received") {
+      customerName = clean(body.customerName, 200);
+      customerMobile = clean(body.customerMobile, 30);
+      customerLocation = clean(body.customerLocation, 300);
+      receivedBy = clean(body.receivedBy, 200);
+      moneyWentTo = clean(body.moneyWentTo, 300);
+      settlementStatus = clean(body.settlementStatus || "Pending", 40);
+      settlementNote = clean(body.settlementNote, 1000);
+
+      if (!customerName) return json({ success: false, message: "पैसा भेजने वाले का नाम दर्ज करें।" }, 400);
+      if (!validMobile(customerMobile)) return json({ success: false, message: "पैसा भेजने वाले का मोबाइल नंबर सही दर्ज करें।" }, 400);
+      if (!moneyWentTo) return json({ success: false, message: "नकद किसे दिया गया, यह चुनें।" }, 400);
+      if (!["Pending", "Received by Family", "Transferred to Shop", "Settled"].includes(settlementStatus)) settlementStatus = "Pending";
+    } else {
+      paidBy = clean(body.paidBy, 200);
+      const paidByMobile = clean(body.paidByMobile, 30);
+      const paidByLocation = clean(body.paidByLocation, 300);
+      recipientName = clean(body.recipientName, 200);
+      recipientMobile = clean(body.recipientMobile, 30);
+      recipientLocation = clean(body.recipientLocation, 300);
+      purpose = clean(body.purpose, 1000);
+
+      if (!recipientName) return json({ success: false, message: "जिसे पैसा भेजा है उसका नाम दर्ज करें।" }, 400);
+      if (!validMobile(paidByMobile) || !validMobile(recipientMobile)) return json({ success: false, message: "मोबाइल नंबर सही दर्ज करें।" }, 400);
+
+      // Existing customer_* columns में भेजने वाले की जानकारी सुरक्षित रखी जाती है.
+      customerName = paidBy;
+      customerMobile = paidByMobile;
+      customerLocation = paidByLocation;
+    }
+
+    const id = crypto.randomUUID();
+    const final = finalAmount(type, amount, charge);
+
+    await env.DB.prepare(`
+      INSERT INTO payment_collections (
+        id, workspace_id, created_by,
+        customer_name, customer_mobile, customer_location,
+        amount, csc_charge, final_amount, payment_mode, utr,
+        received_by, money_went_to, settlement_status, settlement_note,
+        received_at, created_at, updated_at,
+        transaction_type, purpose, paid_by,
+        recipient_name, recipient_mobile, recipient_location, transaction_status
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+        ?, ?, ?, ?, ?, ?, ?
+      )
+    `).bind(
+      id, context.workspaceId, context.user.user_id,
+      customerName, customerMobile, customerLocation,
+      amount, charge, final, mode, clean(body.utr, 150),
+      receivedBy, moneyWentTo, settlementStatus, settlementNote,
+      receivedAt, type, purpose, paidBy,
+      recipientName, recipientMobile, recipientLocation, status
+    ).run();
+
+    return json({ success: true, id, message: "लेन-देन सफलतापूर्वक सेव हो गया।", finalAmount: final });
+  } catch (error) {
+    return json({ success: false, message: "लेन-देन सेव नहीं हुआ।", error: String(error.message || error) }, 500);
+  }
 }
 
 export async function onRequestPatch({ request, env }) {
-  return handleRequest(request, env, "PATCH");
+  try {
+    const context = await getContext(request, env);
+    if (context.error) return context.error;
+
+    let body;
+    try { body = await request.json(); }
+    catch { return json({ success: false, message: "गलत Request Data।" }, 400); }
+
+    const id = clean(body.id, 100);
+    if (!id) return json({ success: false, message: "Payment ID नहीं मिला।" }, 400);
+
+    const record = await env.DB.prepare(`
+      SELECT id, transaction_type, amount, csc_charge
+      FROM payment_collections
+      WHERE id = ? AND workspace_id = ?
+      LIMIT 1
+    `).bind(id, context.workspaceId).first();
+
+    if (!record) return json({ success: false, message: "Payment Record नहीं मिला।" }, 404);
+
+    const updates = [];
+    const values = [];
+
+    if (body.settlementStatus !== undefined) {
+      const allowed = ["Pending", "Received by Family", "Transferred to Shop", "Settled"];
+      if (!allowed.includes(body.settlementStatus)) return json({ success: false, message: "Settlement Status सही नहीं है।" }, 400);
+      updates.push("settlement_status = ?"); values.push(body.settlementStatus);
+    }
+
+    if (body.transactionStatus !== undefined) {
+      const allowed = ["Completed", "Pending", "Failed"];
+      if (!allowed.includes(body.transactionStatus)) return json({ success: false, message: "Transaction Status सही नहीं है।" }, 400);
+      updates.push("transaction_status = ?"); values.push(body.transactionStatus);
+    }
+
+    if (body.cscCharge !== undefined) {
+      const charge = Number(body.cscCharge);
+      if (!Number.isFinite(charge) || charge < 0 || (record.transaction_type === "received" && charge > Number(record.amount))) {
+        return json({ success: false, message: "CSC Charge सही दर्ज करें।" }, 400);
+      }
+      updates.push("csc_charge = ?"); values.push(charge);
+      updates.push("final_amount = ?"); values.push(finalAmount(record.transaction_type || "received", Number(record.amount), charge));
+    }
+
+    if (!updates.length) return json({ success: false, message: "अपडेट करने के लिए कोई जानकारी नहीं मिली।" }, 400);
+
+    updates.push("updated_at = CURRENT_TIMESTAMP");
+    values.push(id, context.workspaceId);
+    await env.DB.prepare(`UPDATE payment_collections SET ${updates.join(", ")} WHERE id = ? AND workspace_id = ?`).bind(...values).run();
+
+    return json({ success: true, message: "Payment Record अपडेट हो गया।" });
+  } catch (error) {
+    return json({ success: false, message: "Payment Record अपडेट नहीं हुआ।", error: String(error.message || error) }, 500);
+  }
 }
 
 export async function onRequestDelete({ request, env }) {
-  return handleRequest(request, env, "DELETE");
+  try {
+    const context = await getContext(request, env);
+    if (context.error) return context.error;
+
+    const id = clean(new URL(request.url).searchParams.get("id"), 100);
+    if (!id) return json({ success: false, message: "Payment ID नहीं मिला।" }, 400);
+
+    const result = await env.DB.prepare(`
+      DELETE FROM payment_collections
+      WHERE id = ? AND workspace_id = ?
+    `).bind(id, context.workspaceId).run();
+
+    if (!result.meta?.changes) return json({ success: false, message: "Payment Record नहीं मिला।" }, 404);
+    return json({ success: true, message: "Payment Record हटा दिया गया।" });
+  } catch (error) {
+    return json({ success: false, message: "Payment Record हटाया नहीं जा सका।", error: String(error.message || error) }, 500);
+  }
 }
