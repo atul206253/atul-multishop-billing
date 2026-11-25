@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -97,6 +96,13 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 .form-group textarea{min-height:85px;resize:vertical}
 .create-report-btn{background:#1769d2;color:white;margin-top:13px}
 .report-hint{font-size:12px;color:#718096;margin:10px 0 0}
+.payment-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0 16px}
+.payment-filters input,.payment-filters select{width:100%;padding:10px;border:1px solid #ccd6e4;border-radius:7px;font:inherit;background:white}
+.payment-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0 16px}
+.payment-summary div{background:#f3f6fb;border:1px solid #e3eaf3;border-radius:9px;padding:12px}
+.payment-summary small{display:block;color:#66758d}
+.payment-summary b{display:block;font-size:20px;margin-top:5px;color:#1769d2}
+.status-pill{display:inline-block;padding:4px 7px;border-radius:6px;background:#edf2f8;font-size:11px;white-space:nowrap}
 @media(max-width:600px){
   .container{padding:12px}
   header{padding:15px}
@@ -140,6 +146,7 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
       <button onclick="showTab('shops',this)">Shops</button>
       <button onclick="showTab('bills',this)">All Bills</button>
       <button onclick="showTab('customers',this)">Customers</button>
+      <button onclick="showTab('payments',this)">Payment Register</button>
       <button onclick="showTab('reports',this)">Reports</button>
       <button onclick="showTab('requests',this)">Join Requests</button>
     </nav>
@@ -202,6 +209,39 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
           <tbody id="customersBody"></tbody>
         </table>
       </div>
+    </section>
+
+    <section class="panel" id="payments">
+      <h3>सभी दुकानों का Payment Register</h3>
+      <div class="payment-summary">
+        <div><small>कुल प्राप्त रकम</small><b id="paymentReceivedTotal">₹0.00</b></div>
+        <div><small>कुल भेजी गई रकम</small><b id="paymentSentTotal">₹0.00</b></div>
+        <div><small>कुल रिकॉर्ड</small><b id="paymentRecordCount">0</b></div>
+      </div>
+      <div class="payment-filters">
+        <input id="paymentSearch" type="search" placeholder="दुकान, ऑपरेटर, नाम, मोबाइल, UTR खोजें..." oninput="filterPayments()">
+        <select id="paymentTypeFilter" onchange="filterPayments()">
+          <option value="">सभी लेन-देन</option><option value="received">पैसा प्राप्त</option><option value="sent">पैसा भेजा</option>
+        </select>
+        <select id="paymentStatusFilter" onchange="filterPayments()">
+          <option value="">सभी Transaction Status</option><option value="Completed">Completed</option><option value="Pending">Pending</option><option value="Failed">Failed</option>
+        </select>
+        <select id="paymentSettlementFilter" onchange="filterPayments()">
+          <option value="">सभी Settlement Status</option><option value="Pending">Pending</option><option value="Received by Family">Received by Family</option><option value="Transferred to Shop">Transferred to Shop</option><option value="Settled">Settled</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table style="min-width:1500px">
+          <thead><tr>
+            <th>तारीख</th><th>दुकान</th><th>Operator</th><th>लेन-देन</th>
+            <th>ग्राहक / प्राप्तकर्ता</th><th>मोबाइल</th><th>रकम</th><th>CSC चार्ज</th>
+            <th>Final Amount</th><th>Payment Mode</th><th>UTR</th>
+            <th>Transaction Status</th><th>Settlement Status</th><th>विवरण</th>
+          </tr></thead>
+          <tbody id="paymentsBody"></tbody>
+        </table>
+      </div>
+      <p class="note" id="paymentNotice">यहाँ सभी दुकानों के Payment Register रिकॉर्ड केवल Main Admin को दिखाई देंगे। रकम और रिकॉर्ड डेटाबेस में दर्ज जानकारी के अनुसार हैं।</p>
     </section>
 
     <section class="panel" id="reports">
@@ -313,6 +353,7 @@ const $ = id => document.getElementById(id);
 let adminUsers = [];
 let adminShops = [];
 let adminMemberships = [];
+let adminPayments = [];
 
 function safe(value) {
   return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -579,6 +620,69 @@ async function deleteReport(reportId) {
   }
 }
 
+function money(value) {
+  const n = Number(value || 0);
+  return "₹" + n.toLocaleString("en-IN", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function paymentPerson(p) {
+  return p.transaction_type === "sent"
+    ? (p.recipient_name || p.paid_by || p.customer_name || "-")
+    : (p.customer_name || p.paid_by || "-");
+}
+
+function paymentMobile(p) {
+  return p.transaction_type === "sent"
+    ? (p.recipient_mobile || p.customer_mobile || "-")
+    : (p.customer_mobile || p.recipient_mobile || "-");
+}
+
+function filterPayments() {
+  const q = ($("paymentSearch")?.value || "").trim().toLowerCase();
+  const type = $("paymentTypeFilter")?.value || "";
+  const status = $("paymentStatusFilter")?.value || "";
+  const settlement = $("paymentSettlementFilter")?.value || "";
+  const filtered = adminPayments.filter(p => {
+    const haystack = [p.workspace_name,p.operator_name,paymentPerson(p),paymentMobile(p),p.utr,p.payment_mode,p.purpose,p.recipient_location,p.customer_location].join(" ").toLowerCase();
+    return (!q || haystack.includes(q)) && (!type || p.transaction_type === type) &&
+      (!status || p.transaction_status === status) && (!settlement || p.settlement_status === settlement);
+  });
+  rows("paymentsBody", filtered.map(p => {
+    const typeLabel = p.transaction_type === "sent" ? "पैसा भेजा" : "पैसा प्राप्त";
+    const details = [p.purpose,p.settlement_note,p.transaction_note].filter(Boolean).join(" | ");
+    return `<tr>
+      ${cell(p.received_at || p.created_at)}
+      ${cell(p.workspace_name)}
+      ${cell(p.operator_name || p.created_by)}
+      ${cell(typeLabel)}
+      ${cell(paymentPerson(p))}
+      ${cell(paymentMobile(p))}
+      ${cell(money(p.amount))}
+      ${cell(money(p.csc_charge))}
+      ${cell(money(p.final_amount))}
+      ${cell(p.payment_mode)}
+      ${cell(p.utr)}
+      <td><span class="status-pill">${safe(p.transaction_status || "-")}</span></td>
+      <td><span class="status-pill">${safe(p.settlement_status || "-")}</span></td>
+      ${cell(details || "-")}
+    </tr>`;
+  }).join(""));
+}
+
+function renderPayments() {
+  const notice = $("paymentNotice");
+  const apiError = window.adminPaymentError || "";
+  if (notice && apiError) {
+    notice.textContent = "Payment Register डेटा नहीं आ पाया: " + apiError + " — बाकी Admin डेटा सामान्य रूप से उपलब्ध है।";
+  }
+  const received = adminPayments.filter(p => p.transaction_type === "received").reduce((sum,p) => sum + Number(p.amount || 0),0);
+  const sent = adminPayments.filter(p => p.transaction_type === "sent").reduce((sum,p) => sum + Number(p.amount || 0),0);
+  $("paymentReceivedTotal").textContent = money(received);
+  $("paymentSentTotal").textContent = money(sent);
+  $("paymentRecordCount").textContent = adminPayments.length;
+  filterPayments();
+}
+
 async function loadAdmin() {
   $("message").hidden = false;
   $("message").className = "loading";
@@ -617,6 +721,8 @@ async function loadAdmin() {
     const customers = d.customers || [];
     const reports = d.reports || [];
     const requests = d.joinRequests || [];
+    adminPayments = d.paymentCollections || [];
+    window.adminPaymentError = d.paymentCollectionsError || "";
 
     adminUsers = users;
     adminShops = shops;
@@ -635,6 +741,7 @@ async function loadAdmin() {
       reports.filter(r => r.status === "open").length;
 
     renderReportTargets();
+    renderPayments();
 
     // OPERATORS
     rows("operatorsBody", users.map(u => {
