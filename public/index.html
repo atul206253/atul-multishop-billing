@@ -415,6 +415,7 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
        <option value="अन्य">अन्य</option>
       </select>
      </div>
+     <div><label>पैसा लेने वाले का मोबाइल</label><input id="paymentCashReceiverMobile" maxlength="15" inputmode="numeric" placeholder="नकद लेने वाले का मोबाइल नंबर"></div>
      <div id="cashReceiverNameWrap" class="paymentHidden">
       <label>नकद लेने वाले परिवार के सदस्य का नाम</label>
       <input id="paymentCashReceiverName" placeholder="परिवार के सदस्य का नाम">
@@ -1283,6 +1284,7 @@ function resetPaymentForm() {
  $("paymentReceivedBy").value = currentUser?.name || "";
  $("paymentWentTo").value = "ग्राहक ने स्वयं नकद लिया";
  $("paymentCashReceiverName").value = "";
+ $("paymentCashReceiverMobile").value = "";
  toggleCashReceiverName();
  $("paymentSettlement").value = "Pending";
  $("paymentSettlementNote").value = "";
@@ -1414,7 +1416,9 @@ function renderPaymentRecords() {
     <td>${safe(r.received_at || r.created_at || "-")}</td>
     <td><span class="badge ${isReceived ? "paid" : "unpaid"}">${isReceived ? "⬇ प्राप्त" : "⬆ भेजा"}</span></td>
     <td>${safe(person || "-")}</td>
-    <td>${safe(mobile || "-")}<br>${safe(location || "-")}</td>
+    <td>${safe(mobile || "-")}<br>${safe(location || "-")}
+     ${isReceived ? `<br><small>पैसा लेने वाले का मोबाइल: ${safe(r.recipient_mobile || "-")}</small>` : `<br><small>पैसा भेजने वाले का मोबाइल: ${safe(r.customer_mobile || "-")}</small>`}
+    </td>
     <td>
      <b>मूल: ${fmt(r.amount)}</b><br>
      <small>CSC: ${fmt(r.csc_charge || 0)}</small><br>
@@ -1528,11 +1532,13 @@ function printPaymentReceipt(id) {
    <p><b>${personLabel}:</b> ${safe(person || "-")}</p>
    <p><b>${mobileLabel}:</b> ${safe(mobile || "-")}</p>
    <p><b>लोकेशन:</b> ${safe(location || "-")}</p>
-   ${!isReceived ? `
+   ${isReceived ? `
+    <p><b>पैसा लेने वाले का मोबाइल:</b> ${safe(r.recipient_mobile || "-")}</p>
+   ` : `
     <p><b>पैसा भेजने वाले का नाम:</b> ${safe(r.paid_by || "-")}</p>
     <p><b>पैसा भेजने वाले का मोबाइल:</b> ${safe(r.customer_mobile || "-")}</p>
     <p><b>पैसा भेजने वाले का पता:</b> ${safe(r.customer_location || "-")}</p>
-   ` : ""}
+   `}
 
    <table>
     <thead><tr><th>विवरण</th><th>जानकारी</th></tr></thead>
@@ -1623,6 +1629,7 @@ async function savePaymentRecord() {
   body.customerName = customerRelation + " - " + customerPersonName;
   body.customerMobile = $("paymentCustomerMobile").value.trim();
   body.customerLocation = $("paymentCustomerLocation").value.trim();
+  body.receiverMobile = $("paymentCashReceiverMobile").value.trim();
   body.receivedBy = $("paymentReceivedBy").value.trim();
   const cashReceiver = $("paymentWentTo").value;
   const cashReceiverName = $("paymentCashReceiverName").value.trim();
