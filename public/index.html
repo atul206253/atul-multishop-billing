@@ -391,10 +391,10 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
    </div>
 
    <div id="receivedFields">
-    <div class="section">⬇ ग्राहक / मित्र / परिवार से पैसा प्राप्त होने की जानकारी</div>
+    <div class="section">⬇ पैसा भेजने वाले / Payment करने वाले की जानकारी</div>
     <div class="fields">
      <div>
-      <label>पैसा किससे प्राप्त हुआ? *</label>
+      <label>पैसा भेजने / Payment करने वाले का संबंध *</label>
       <select id="paymentCustomerRelation">
        <option value="ग्राहक">ग्राहक</option>
        <option value="मित्र">मित्र / दोस्त</option>
@@ -402,19 +402,22 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
        <option value="अन्य">अन्य व्यक्ति</option>
       </select>
      </div>
-     <div><label>नाम *</label><input id="paymentCustomer" placeholder="ग्राहक / मित्र / परिवार के सदस्य का नाम"></div>
-     <div><label>मोबाइल नंबर</label><input id="paymentCustomerMobile" maxlength="15" inputmode="numeric" placeholder="मोबाइल नंबर"></div>
-     <div><label>पता / लोकेशन</label><input id="paymentCustomerLocation" placeholder="जैसे Delhi, Etawah"></div>
-     <div><label>पैसा किसने प्राप्त किया?</label><input id="paymentReceivedBy" placeholder="जैसे Atul / परिवार का सदस्य"></div>
+     <div><label>पैसा भेजने / Payment करने वाले का नाम *</label><input id="paymentCustomer" placeholder="जैसे Boby"></div>
+     <div><label>पैसा भेजने वाले का मोबाइल</label><input id="paymentCustomerMobile" maxlength="15" inputmode="numeric" placeholder="जैसे 7248855446"></div>
+     <div><label>पैसा भेजने वाले का पता</label><input id="paymentCustomerLocation" placeholder="जैसे Delhi"></div>
+     <div><label>पेमेंट किसने दर्ज / प्राप्त किया?</label><input id="paymentReceivedBy" placeholder="जैसे Atul / ऑपरेटर"></div>
      <div>
-      <label>पैसा किसके पास गया?</label>
-      <select id="paymentWentTo">
-       <option value="दुकान">दुकान</option>
-       <option value="घर">घर</option>
-       <option value="ऑपरेटर">ऑपरेटर</option>
-       <option value="परिवार का सदस्य">परिवार का सदस्य</option>
+      <label>QR / Online पेमेंट के बदले नकद किसे दिया गया?</label>
+      <select id="paymentWentTo" onchange="toggleCashReceiverName()">
+       <option value="ग्राहक ने स्वयं नकद लिया">ग्राहक ने स्वयं नकद लिया</option>
+       <option value="परिवार के सदस्य ने नकद लिया">परिवार के सदस्य ने नकद लिया</option>
+       <option value="दुकान में जमा किया">दुकान में जमा किया</option>
        <option value="अन्य">अन्य</option>
       </select>
+     </div>
+     <div id="cashReceiverNameWrap" class="paymentHidden">
+      <label>नकद लेने वाले परिवार के सदस्य का नाम</label>
+      <input id="paymentCashReceiverName" placeholder="परिवार के सदस्य का नाम">
      </div>
      <div>
       <label>Settlement Status</label>
@@ -435,7 +438,9 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
    <div id="sentFields" class="paymentHidden">
     <div class="section">⬆ ग्राहक / मित्र / परिवार को पैसा भेजने / भुगतान करने की जानकारी</div>
     <div class="fields">
-     <div><label>पैसा किसने भेजा?</label><input id="paymentPaidBy" placeholder="जैसे Atul / दुकान / कर्मचारी"></div>
+     <div><label>पैसा भेजने / Payment करने वाले का नाम</label><input id="paymentPaidBy" placeholder="जैसे Boby / Atul"></div>
+     <div><label>पैसा भेजने वाले का मोबाइल</label><input id="paymentPaidByMobile" maxlength="15" inputmode="numeric" placeholder="जैसे 7248855446"></div>
+     <div><label>पैसा भेजने वाले का पता</label><input id="paymentPaidByLocation" placeholder="जैसे Delhi"></div>
      <div>
       <label>भुगतान किसको किया? *</label>
       <select id="paymentRecipientRelation">
@@ -1255,6 +1260,13 @@ function localDateTime() {
  return local.toISOString().slice(0,16);
 }
 
+function toggleCashReceiverName() {
+ const select = $("paymentWentTo");
+ const wrap = $("cashReceiverNameWrap");
+ if (!select || !wrap) return;
+ wrap.classList.toggle("paymentHidden", select.value !== "परिवार के सदस्य ने नकद लिया");
+}
+
 function resetPaymentForm() {
  $("transactionType").value = "received";
  $("paymentDate").value = localDateTime();
@@ -1269,11 +1281,15 @@ function resetPaymentForm() {
  $("paymentCustomerMobile").value = "";
  $("paymentCustomerLocation").value = "";
  $("paymentReceivedBy").value = currentUser?.name || "";
- $("paymentWentTo").value = "दुकान";
+ $("paymentWentTo").value = "ग्राहक ने स्वयं नकद लिया";
+ $("paymentCashReceiverName").value = "";
+ toggleCashReceiverName();
  $("paymentSettlement").value = "Pending";
  $("paymentSettlementNote").value = "";
 
  $("paymentPaidBy").value = currentUser?.name || "";
+ $("paymentPaidByMobile").value = "";
+ $("paymentPaidByLocation").value = "";
  $("paymentRecipientRelation").value = "ग्राहक";
  $("paymentRecipient").value = "";
  $("paymentRecipientMobile").value = "";
@@ -1462,11 +1478,11 @@ function printPaymentReceipt(id) {
  const location = isReceived ? r.customer_location : r.recipient_location;
 
  const personLabel = isReceived
-  ? "ग्राहक का नाम"
+  ? "पैसा भेजने वाले का नाम"
   : "भुगतान प्राप्त करने वाले का नाम";
 
  const mobileLabel = isReceived
-  ? "ग्राहक मोबाइल"
+  ? "पैसा भेजने वाले का मोबाइल"
   : "प्राप्तकर्ता मोबाइल";
 
  const who = isReceived ? r.received_by : r.paid_by;
@@ -1512,6 +1528,11 @@ function printPaymentReceipt(id) {
    <p><b>${personLabel}:</b> ${safe(person || "-")}</p>
    <p><b>${mobileLabel}:</b> ${safe(mobile || "-")}</p>
    <p><b>लोकेशन:</b> ${safe(location || "-")}</p>
+   ${!isReceived ? `
+    <p><b>पैसा भेजने वाले का नाम:</b> ${safe(r.paid_by || "-")}</p>
+    <p><b>पैसा भेजने वाले का मोबाइल:</b> ${safe(r.customer_mobile || "-")}</p>
+    <p><b>पैसा भेजने वाले का पता:</b> ${safe(r.customer_location || "-")}</p>
+   ` : ""}
 
    <table>
     <thead><tr><th>विवरण</th><th>जानकारी</th></tr></thead>
@@ -1521,8 +1542,8 @@ function printPaymentReceipt(id) {
      <tr><td><b>${isReceived ? "अंतिम देने योग्य राशि" : "कुल भुगतान राशि"}</b></td><td><b>${fmt(finalAmount)}</b></td></tr>
      <tr><td>Payment Mode</td><td>${safe(r.payment_mode || "-")}</td></tr>
      <tr><td>UTR / Transaction ID</td><td>${safe(r.utr || "-")}</td></tr>
-     <tr><td>${isReceived ? "पैसा किसने प्राप्त किया" : "पैसा किसने भेजा"}</td><td>${safe(who || "-")}</td></tr>
-     <tr><td>${isReceived ? "पैसा कहाँ गया" : "भुगतान का कारण"}</td><td>${safe(purpose)}</td></tr>
+     <tr><td>${isReceived ? "पेमेंट किसने दर्ज / प्राप्त किया" : "पैसा किसने भेजा"}</td><td>${safe(who || "-")}</td></tr>
+     <tr><td>${isReceived ? "QR / Online पेमेंट के बदले नकद किसे दिया गया" : "भुगतान का कारण"}</td><td>${safe(purpose)}</td></tr>
      <tr><td>Settlement Status</td><td>${safe(settlement)}</td></tr>
      <tr><td>Transaction Status</td><td>${safe(r.transaction_status || "Completed")}</td></tr>
     </tbody>
@@ -1603,17 +1624,28 @@ async function savePaymentRecord() {
   body.customerMobile = $("paymentCustomerMobile").value.trim();
   body.customerLocation = $("paymentCustomerLocation").value.trim();
   body.receivedBy = $("paymentReceivedBy").value.trim();
-  body.moneyWentTo = $("paymentWentTo").value;
+  const cashReceiver = $("paymentWentTo").value;
+  const cashReceiverName = $("paymentCashReceiverName").value.trim();
+  if (cashReceiver === "परिवार के सदस्य ने नकद लिया" && !cashReceiverName) {
+   alert("नकद लेने वाले परिवार के सदस्य का नाम दर्ज करें।");
+   $("paymentCashReceiverName").focus();
+   return;
+  }
+  body.moneyWentTo = cashReceiver === "परिवार के सदस्य ने नकद लिया"
+   ? cashReceiver + " : " + cashReceiverName
+   : cashReceiver;
   body.settlementStatus = $("paymentSettlement").value;
   body.settlementNote = $("paymentSettlementNote").value.trim();
 
-  if (!body.customerName) {
-   alert("ग्राहक / मित्र / परिवार के सदस्य का नाम दर्ज करें।");
+  if (!customerPersonName) {
+   alert("पैसा भेजने / Payment करने वाले का नाम दर्ज करें।");
    $("paymentCustomer").focus();
    return;
   }
  } else {
   body.paidBy = $("paymentPaidBy").value.trim();
+  body.paidByMobile = $("paymentPaidByMobile").value.trim();
+  body.paidByLocation = $("paymentPaidByLocation").value.trim();
   const recipientRelation = $("paymentRecipientRelation").value;
   const recipientPersonName = $("paymentRecipient").value.trim();
   body.recipientName = recipientRelation + " - " + recipientPersonName;
@@ -1696,13 +1728,15 @@ async function deletePaymentRecord(id) {
 
 function exportPaymentCSV() {
  const rows = [
-  ["Date","Type","Customer/Recipient","Mobile","Location","Base Amount","CSC Charge","Final Amount","Payment Mode","UTR","Received By/Paid By","Money Went To/Purpose","Settlement Status","Transaction Status"],
+  ["Date","Type","Customer/Recipient","Mobile","Location","Payer Name","Payer Mobile","Payer Address","Base Amount","CSC Charge","Final Amount","Payment Mode","UTR","Received By/Paid By","Cash Given To/Purpose","Settlement Status","Transaction Status"],
   ...paymentRecords.map(r => [
    r.received_at || r.created_at || "",
    r.transaction_type || "received",
    r.transaction_type === "sent" ? r.recipient_name : r.customer_name,
    r.transaction_type === "sent" ? r.recipient_mobile : r.customer_mobile,
    r.transaction_type === "sent" ? r.recipient_location : r.customer_location,
+   r.transaction_type === "sent" ? r.paid_by : r.customer_name,
+   r.customer_mobile,r.customer_location,
    r.amount,r.csc_charge || 0,paymentRecordFinalAmount(r),r.payment_mode,r.utr,
    r.transaction_type === "sent" ? r.paid_by : r.received_by,
    r.transaction_type === "sent" ? r.purpose : r.money_went_to,
@@ -1767,6 +1801,7 @@ $("paymentSearch").addEventListener("input", renderPaymentRecords);
 $("paymentCsv").addEventListener("click", exportPaymentCSV);
 $("paymentAmount").addEventListener("input", updatePaymentCalculation);
 $("paymentCscCharge").addEventListener("input", updatePaymentCalculation);
+if ($("paymentWentTo")) $("paymentWentTo").addEventListener("change", toggleCashReceiverName);
 
 $("paymentRows").addEventListener("change", event => {
  const select = event.target.closest("[data-settlement]");
