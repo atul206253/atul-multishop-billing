@@ -79,6 +79,28 @@ button:disabled{opacity:.6;cursor:not-allowed}
   position:absolute;right:9px;top:9px;border:0;
   background:#edf2f7;padding:5px 8px;border-radius:5px;cursor:pointer
 }
+
+/* Forgot Password WhatsApp Button */
+.forgot-password{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  margin-top:13px;
+  padding:12px;
+  border:1px solid #b8e7c9;
+  border-radius:9px;
+  background:#eafaf0;
+  color:#168044;
+  font-size:14px;
+  font-weight:bold;
+  text-decoration:none;
+  cursor:pointer;
+}
+.forgot-password:hover{
+  background:#d9f5e4;
+}
 </style>
 </head>
 <body>
@@ -114,6 +136,13 @@ button:disabled{opacity:.6;cursor:not-allowed}
     </div>
 
     <button class="primary" type="submit" id="loginButton">Login करें</button>
+
+    <!-- FORGOT PASSWORD WHATSAPP -->
+    <a href="#" class="forgot-password" id="forgotPassword">
+      <span>🟢</span>
+      पासवर्ड भूल गए? WhatsApp पर संपर्क करें
+    </a>
+
     <div class="link">
       नया अकाउंट बनाना है?
       <a href="#" id="openRegister">Registration करें</a>
@@ -252,6 +281,29 @@ function togglePassword(id,button){
     field.type="password";button.textContent="Show";
   }
 }
+
+// FORGOT PASSWORD - OPEN ADMIN WHATSAPP
+$("forgotPassword").addEventListener("click",e=>{
+  e.preventDefault();
+
+  const mobile=cleanMobile($("loginMobile").value);
+
+  const mobileText=/^[6-9]\d{9}$/.test(mobile)
+    ? mobile
+    : "अपना रजिस्टर्ड मोबाइल नंबर यहाँ लिखें";
+
+  const message=
+    "नमस्ते Atul Ji,\n\n"+
+    "मैं Atul Billing System का Operator हूँ।\n"+
+    "मुझे अपना Login Password भूल गया है। कृपया मेरा Password Reset कर दीजिए।\n\n"+
+    "मेरा रजिस्टर्ड मोबाइल नंबर: "+mobileText+"\n\n"+
+    "धन्यवाद।";
+
+  const whatsappUrl=
+    "https://wa.me/917248855446?text="+encodeURIComponent(message);
+
+  window.open(whatsappUrl,"_blank","noopener,noreferrer");
+});
 
 document.querySelectorAll('input[name="shopMode"]').forEach(radio=>{
   radio.addEventListener("change",()=>{
