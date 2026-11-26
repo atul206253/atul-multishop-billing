@@ -459,11 +459,8 @@ footer{background:#063d83;color:white;padding:14px;display:flex;justify-content:
        <option value="अन्य">अन्य</option>
       </select>
      </div>
-     <div><label>पैसा लेने वाले का मोबाइल</label><input id="paymentCashReceiverMobile" maxlength="15" inputmode="numeric" placeholder="नकद लेने वाले का मोबाइल नंबर"></div>
-     <div id="cashReceiverNameWrap" class="paymentHidden">
-      <label>नकद लेने वाले परिवार के सदस्य का नाम</label>
-      <input id="paymentCashReceiverName" placeholder="परिवार के सदस्य का नाम">
-     </div>
+     <div><label>पैसा लेने वाले का नाम *</label><input id="paymentCashReceiverName" maxlength="200" placeholder="नकद / पैसा लेने वाले का पूरा नाम"></div>
+     <div><label>पैसा लेने वाले का मोबाइल</label><input id="paymentCashReceiverMobile" maxlength="15" inputmode="numeric" placeholder="पैसा लेने वाले का मोबाइल नंबर"></div>
      <div>
       <label>Settlement Status</label>
       <select id="paymentSettlement">
@@ -1306,10 +1303,9 @@ function localDateTime() {
 }
 
 function toggleCashReceiverName() {
- const select = $("paymentWentTo");
- const wrap = $("cashReceiverNameWrap");
- if (!select || !wrap) return;
- wrap.classList.toggle("paymentHidden", select.value !== "परिवार के सदस्य ने नकद लिया");
+ // पैसा लेने वाले का नाम सभी प्रकार के received payment में हमेशा दिखेगा।
+ const field = $("paymentCashReceiverName");
+ if (field) field.closest("div")?.classList.remove("paymentHidden");
 }
 
 function resetPaymentForm() {
@@ -1459,7 +1455,10 @@ function renderPaymentRecords() {
    <tr>
     <td>${safe(r.received_at || r.created_at || "-")}</td>
     <td><span class="badge ${isReceived ? "paid" : "unpaid"}">${isReceived ? "⬇ प्राप्त" : "⬆ भेजा"}</span></td>
-    <td>${safe(person || "-")}</td>
+    <td>
+     ${safe(person || "-")}
+     ${isReceived ? `<br><small>पैसा लेने वाले का नाम: ${safe(r.recipient_name || "-")}</small>` : ""}
+    </td>
     <td>${safe(mobile || "-")}<br>${safe(location || "-")}
      ${isReceived ? `<br><small>पैसा लेने वाले का मोबाइल: ${safe(r.recipient_mobile || "-")}</small>` : `<br><small>पैसा भेजने वाले का मोबाइल: ${safe(r.customer_mobile || "-")}</small>`}
     </td>
@@ -1526,7 +1525,7 @@ function printPaymentReceipt(id) {
  const location = isReceived ? r.customer_location : r.recipient_location;
 
  const personLabel = isReceived
-  ? "पैसा भेजने वाले का नाम"
+  ? "पैसा भेजने / Payment करने वाले का नाम"
   : "भुगतान प्राप्त करने वाले का नाम";
 
  const mobileLabel = isReceived
@@ -1577,6 +1576,7 @@ function printPaymentReceipt(id) {
    <p><b>${mobileLabel}:</b> ${safe(mobile || "-")}</p>
    <p><b>लोकेशन:</b> ${safe(location || "-")}</p>
    ${isReceived ? `
+    <p><b>पैसा लेने वाले का नाम:</b> ${safe(r.recipient_name || "-")}</p>
     <p><b>पैसा लेने वाले का मोबाइल:</b> ${safe(r.recipient_mobile || "-")}</p>
    ` : `
     <p><b>पैसा भेजने वाले का नाम:</b> ${safe(r.paid_by || "-")}</p>
@@ -1672,18 +1672,17 @@ async function savePaymentRecord() {
   body.customerName = customerRelation + " - " + customerPersonName;
   body.customerMobile = $("paymentCustomerMobile").value.trim();
   body.customerLocation = $("paymentCustomerLocation").value.trim();
+  body.receiverName = $("paymentCashReceiverName").value.trim();
   body.receiverMobile = $("paymentCashReceiverMobile").value.trim();
   body.receivedBy = $("paymentReceivedBy").value.trim();
   const cashReceiver = $("paymentWentTo").value;
-  const cashReceiverName = $("paymentCashReceiverName").value.trim();
-  if (cashReceiver === "परिवार के सदस्य ने नकद लिया" && !cashReceiverName) {
-   alert("नकद लेने वाले परिवार के सदस्य का नाम दर्ज करें।");
+  body.moneyWentTo = cashReceiver;
+
+  if (!body.receiverName) {
+   alert("पैसा लेने वाले का नाम दर्ज करें।");
    $("paymentCashReceiverName").focus();
    return;
   }
-  body.moneyWentTo = cashReceiver === "परिवार के सदस्य ने नकद लिया"
-   ? cashReceiver + " : " + cashReceiverName
-   : cashReceiver;
   body.settlementStatus = $("paymentSettlement").value;
   body.settlementNote = $("paymentSettlementNote").value.trim();
 
@@ -1778,13 +1777,15 @@ async function deletePaymentRecord(id) {
 
 function exportPaymentCSV() {
  const rows = [
-  ["Date","Type","Customer/Recipient","Mobile","Location","Payer Name","Payer Mobile","Payer Address","Base Amount","CSC Charge","Final Amount","Payment Mode","UTR","Received By/Paid By","Cash Given To/Purpose","Settlement Status","Transaction Status"],
+  ["Date","Type","Customer/Recipient","Mobile","Location","Receiver Name","Receiver Mobile","Payer Name","Payer Mobile","Payer Address","Base Amount","CSC Charge","Final Amount","Payment Mode","UTR","Received By/Paid By","Cash Given To/Purpose","Settlement Status","Transaction Status"],
   ...paymentRecords.map(r => [
    r.received_at || r.created_at || "",
    r.transaction_type || "received",
    r.transaction_type === "sent" ? r.recipient_name : r.customer_name,
    r.transaction_type === "sent" ? r.recipient_mobile : r.customer_mobile,
    r.transaction_type === "sent" ? r.recipient_location : r.customer_location,
+   r.transaction_type === "sent" ? "" : r.recipient_name,
+   r.transaction_type === "sent" ? "" : r.recipient_mobile,
    r.transaction_type === "sent" ? r.paid_by : r.customer_name,
    r.customer_mobile,r.customer_location,
    r.amount,r.csc_charge || 0,paymentRecordFinalAmount(r),r.payment_mode,r.utr,
