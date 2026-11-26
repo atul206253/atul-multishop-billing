@@ -19,10 +19,13 @@ async function sha256(value) {
     "SHA-256",
     new TextEncoder().encode(value)
   );
+
   let binary = "";
+
   for (const byte of new Uint8Array(digest)) {
     binary += String.fromCharCode(byte);
   }
+
   return btoa(binary);
 }
 
@@ -213,12 +216,16 @@ export async function onRequestPost({ request, env }) {
     let customerName = "";
     let customerMobile = "";
     let customerLocation = "";
+
     let receivedBy = "";
     let moneyWentTo = "";
+
     let settlementStatus = "Pending";
     let settlementNote = "";
+
     let paidBy = "";
     let purpose = "";
+
     let recipientName = "";
     let recipientMobile = "";
     let recipientLocation = "";
@@ -228,6 +235,12 @@ export async function onRequestPost({ request, env }) {
       customerMobile = clean(body.customerMobile, 30);
       customerLocation = clean(body.customerLocation, 300);
 
+      // पैसा लेने वाले का नाम
+      recipientName = clean(
+        body.receiverName ?? body.recipientName,
+        200
+      );
+
       // पैसा लेने वाले का मोबाइल
       recipientMobile = clean(
         body.receiverMobile ?? body.recipientMobile,
@@ -236,10 +249,12 @@ export async function onRequestPost({ request, env }) {
 
       receivedBy = clean(body.receivedBy, 200);
       moneyWentTo = clean(body.moneyWentTo, 300);
+
       settlementStatus = clean(
         body.settlementStatus || "Pending",
         40
       );
+
       settlementNote = clean(body.settlementNote, 1000);
 
       if (!customerName) {
@@ -253,6 +268,13 @@ export async function onRequestPost({ request, env }) {
         return json({
           success: false,
           message: "पैसा भेजने वाले का मोबाइल नंबर सही दर्ज करें।"
+        }, 400);
+      }
+
+      if (!recipientName) {
+        return json({
+          success: false,
+          message: "पैसा लेने वाले का नाम दर्ज करें।"
         }, 400);
       }
 
@@ -288,6 +310,7 @@ export async function onRequestPost({ request, env }) {
       recipientName = clean(body.recipientName, 200);
       recipientMobile = clean(body.recipientMobile, 30);
       recipientLocation = clean(body.recipientLocation, 300);
+
       purpose = clean(body.purpose, 1000);
 
       if (!recipientName) {
