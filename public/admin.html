@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -103,6 +104,49 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
 .payment-summary small{display:block;color:#66758d}
 .payment-summary b{display:block;font-size:20px;margin-top:5px;color:#1769d2}
 .status-pill{display:inline-block;padding:4px 7px;border-radius:6px;background:#edf2f8;font-size:11px;white-space:nowrap}
+
+/* Operator Password Modal */
+.password-modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:#0009;
+  align-items:center;
+  justify-content:center;
+  padding:15px;
+}
+.password-modal.show{display:flex}
+.password-box{
+  background:white;
+  width:100%;
+  max-width:400px;
+  border-radius:13px;
+  padding:22px;
+  box-shadow:0 10px 35px #0004;
+}
+.password-box h3{margin:0 0 15px}
+.password-box p{font-size:13px;color:#52637c}
+.password-box label{
+  display:block;
+  font-size:13px;
+  font-weight:bold;
+  margin:12px 0 5px;
+}
+.password-box input{
+  width:100%;
+  padding:11px;
+  border:1px solid #ccd6e4;
+  border-radius:7px;
+  font:inherit;
+}
+.password-box button{
+  margin-top:13px;
+  width:100%;
+}
+.cancel-password{background:#e1eaf6;color:#263b59}
+.password-help{font-size:12px;color:#718096;line-height:1.5}
+
 @media(max-width:600px){
   .container{padding:12px}
   header{padding:15px}
@@ -347,6 +391,45 @@ th{background:#f3f6fb;color:#42536d;white-space:nowrap}
   </div>
 </main>
 
+<!-- PASSWORD CHANGE MODAL -->
+<div class="password-modal" id="passwordModal">
+  <div class="password-box">
+    <h3>Operator का पासवर्ड बदलें</h3>
+    <p id="passwordOperatorName"></p>
+
+    <label for="newOperatorPassword">नया पासवर्ड</label>
+    <input
+      type="password"
+      id="newOperatorPassword"
+      minlength="8"
+      maxlength="128"
+      autocomplete="new-password"
+      placeholder="कम से कम 8 अक्षर">
+
+    <label for="confirmOperatorPassword">पासवर्ड दोबारा डालें</label>
+    <input
+      type="password"
+      id="confirmOperatorPassword"
+      minlength="8"
+      maxlength="128"
+      autocomplete="new-password"
+      placeholder="पासवर्ड दोबारा लिखें">
+
+    <p class="password-help">
+      पासवर्ड कम से कम 8 और अधिकतम 128 अक्षरों का होना चाहिए।
+    </p>
+
+    <button class="save-btn" id="saveOperatorPasswordButton"
+      onclick="submitOperatorPassword()">
+      पासवर्ड सेव करें
+    </button>
+
+    <button class="cancel-password" onclick="closePasswordModal()">
+      Cancel
+    </button>
+  </div>
+</div>
+
 <script>
 const $ = id => document.getElementById(id);
 
@@ -354,6 +437,7 @@ let adminUsers = [];
 let adminShops = [];
 let adminMemberships = [];
 let adminPayments = [];
+let passwordTargetUserId = "";
 
 function safe(value) {
   return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -381,6 +465,107 @@ function showTab(id, button) {
   button.classList.add("active");
 }
 
+/* OPERATOR PASSWORD CHANGE */
+
+function openPasswordModal(userId) {
+  const operator = adminUsers.find(u => String(u.id) === String(userId));
+
+  if (!operator || Number(operator.is_admin) === 1) {
+    alert("यह Operator अकाउंट नहीं मिला।");
+    return;
+  }
+
+  passwordTargetUserId = String(operator.id);
+
+  $("passwordOperatorName").textContent =
+    "Operator: " + (operator.name || "") +
+    " | मोबाइल: " + (operator.mobile || "");
+
+  $("newOperatorPassword").value = "";
+  $("confirmOperatorPassword").value = "";
+  $("saveOperatorPasswordButton").disabled = false;
+  $("saveOperatorPasswordButton").textContent = "पासवर्ड सेव करें";
+
+  $("passwordModal").classList.add("show");
+  $("newOperatorPassword").focus();
+}
+
+function closePasswordModal() {
+  $("passwordModal").classList.remove("show");
+  passwordTargetUserId = "";
+  $("newOperatorPassword").value = "";
+  $("confirmOperatorPassword").value = "";
+}
+
+async function submitOperatorPassword() {
+  const newPassword = $("newOperatorPassword").value;
+  const confirmPassword = $("confirmOperatorPassword").value;
+
+  if (!passwordTargetUserId) {
+    alert("Operator नहीं चुना गया है।");
+    return;
+  }
+
+  if (newPassword.length < 8 || newPassword.length > 128) {
+    alert("पासवर्ड 8 से 128 अक्षरों के बीच होना चाहिए।");
+    $("newOperatorPassword").focus();
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    alert("दोनों पासवर्ड एक जैसे नहीं हैं।");
+    $("confirmOperatorPassword").focus();
+    return;
+  }
+
+  if (!confirm("क्या आप इस Operator का पासवर्ड बदलना चाहते हैं?")) {
+    return;
+  }
+
+  const button = $("saveOperatorPasswordButton");
+  button.disabled = true;
+  button.textContent = "पासवर्ड सेव हो रहा है...";
+
+  try {
+    const response = await fetch(
+      "/api/admin/operators/reset-password",
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          userId: passwordTargetUserId,
+          newPassword,
+          confirmPassword
+        })
+      }
+    );
+
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      throw new Error("Server से सही जवाब नहीं मिला।");
+    }
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "पासवर्ड नहीं बदला जा सका।");
+    }
+
+    alert(result.message || "Operator का पासवर्ड बदल गया है।");
+    closePasswordModal();
+
+  } catch (error) {
+    alert(error.message || "Server से संपर्क नहीं हो पाया।");
+  } finally {
+    button.disabled = false;
+    button.textContent = "पासवर्ड सेव करें";
+  }
+}
+
+// Operator Status / Permanent Delete
 async function changeOperatorStatus(userId, newStatus) {
   const messages = {
     active:"क्या आप इस Operator का अकाउंट फिर से चालू करना चाहते हैं?",
@@ -764,6 +949,12 @@ async function loadAdmin() {
               Activate
             </button>`;
         }
+
+        actions += `
+          <button class="action-btn save-btn"
+            onclick="openPasswordModal('${safe(u.id)}')">
+            पासवर्ड बदलें
+          </button>`;
 
         actions += `
           <button class="action-btn delete-btn"
