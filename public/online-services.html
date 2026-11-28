@@ -119,6 +119,41 @@ footer{background:#052957;color:#eaf2ff;text-align:center;padding:20px;font-size
  .bottom-cta{grid-template-columns:1fr;padding:18px 14px}.cta-title{font-size:19px}.search-order{flex-wrap:wrap}.search-order input{width:100%;flex-basis:100%}.address{text-align:left;font-size:17px}
  .section{padding:32px 14px}.section h2{font-size:24px}.track-panel{flex-direction:column}.info-grid{grid-template-columns:1fr}
 }
+
+/* Layout fixes: keep the brand and navigation in separate rows when space is tight. */
+.navbar{min-width:0;flex-wrap:nowrap}
+.brand{min-width:0;flex:1 1 auto}
+.brand-title{white-space:normal;overflow-wrap:normal}
+.navlinks{flex:0 0 auto}
+@media(max-width:1390px) and (min-width:701px){
+  .navbar{display:flex;flex-wrap:wrap;row-gap:8px;padding:12px 18px}
+  .brand{flex:1 1 100%;width:100%;justify-content:center}
+  .navlinks{order:3;flex:1 1 auto;width:auto;justify-content:center;min-width:0}
+  .navlinks a{padding:11px 10px}
+  .wa-button{order:4;margin-left:0;padding:12px 18px}
+}
+@media(max-width:900px) and (min-width:701px){
+  .brand-title{font-size:38px}
+  .logo-wrap{width:82px;height:82px;flex-basis:82px}
+  .navlinks{flex-wrap:wrap}
+  .navlinks a{font-size:14px;padding:9px 8px}
+  .wa-button{font-size:14px}
+  .hero{grid-template-columns:1fr 1fr}
+  .support{display:none}
+}
+@media(max-width:700px){
+  .navbar{display:flex;flex-wrap:wrap;align-items:center}
+  .brand{flex:1 1 calc(100% - 48px);width:auto;justify-content:flex-start}
+  .brand-title{font-size:clamp(19px,5.2vw,30px);white-space:normal;line-height:1.05}
+  .tagline{text-align:left;line-height:1.2}
+  .mobile-menu{display:block;order:2;flex:0 0 auto}
+  .navlinks{order:5;display:none;flex:1 1 100%;width:100%;min-width:100%;flex-direction:column;align-items:stretch;background:#f5f8ff;border-radius:10px;padding:6px}
+  .navbar.menu-open .navlinks{display:flex}
+  .navlinks a{border:0;padding:12px}
+  .wa-button{order:6;margin:0 auto 2px;display:inline-block}
+  .hero{grid-template-columns:1fr 1fr}
+}
+
 </style>
 </head>
 <body>
@@ -156,14 +191,7 @@ const CONTACT_EMAIL = "atuljansevakendra@gmail.com";
   <button class="mobile-menu" onclick="document.getElementById('navbar').classList.toggle('menu-open')" aria-label="Open menu">☰</button>
   <nav class="navlinks">
     <a class="active" href="#home">⌂ Home</a>
-    <details class="services-menu">
-      <summary>Our Services⌄</summary>
-      <div class="dropdown">
-        <a href="#services">All Services</a>
-        <a href="#track">Track Order</a>
-        <a href="#contact">Contact Us</a>
-      </div>
-    </details>
+    <a href="#services">Our Services⌄</a>
     <a href="#track">Track Order</a>
     <a href="#about">About Us</a>
     <a href="#contact">Contact Us</a>
