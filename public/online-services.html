@@ -154,6 +154,29 @@ footer{background:#052957;color:#eaf2ff;text-align:center;padding:20px;font-size
   .hero{grid-template-columns:1fr 1fr}
 }
 
+
+/* BRAND ALIGNMENT FIX: logo, business name and tagline stay left-aligned. */
+.navbar .brand{
+  justify-content:flex-start !important;
+  text-align:left !important;
+}
+.navbar .brand > div:last-child{
+  text-align:left !important;
+  margin-left:0;
+}
+.navbar .brand .tagline{
+  text-align:left !important;
+}
+@media(max-width:1390px) and (min-width:701px){
+  .navbar .brand{justify-content:flex-start !important;}
+}
+@media(max-width:700px){
+  .navbar .brand{justify-content:flex-start !important;}
+  .navbar .brand > div:last-child{min-width:0;}
+  .navbar .brand .brand-title{ text-align:left !important; }
+  .navbar .brand .tagline{ text-align:left !important; }
+}
+
 </style>
 </head>
 <body>
