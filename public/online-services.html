@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Atul Jan Seva Kendra - Online forms, typing, resume, PDF editing, photo resize and digital services across India.">
+<title>Atul Jan Seva Kendra | Online Services</title>
+<style>
+:root{
+  --navy:#07366f;--blue:#0754b8;--red:#ed172b;--green:#08a52d;
+  --ink:#081a36;--muted:#60708a;--line:#d7e2f2;--pale:#eef4ff;
+  --shadow:0 5px 18px rgba(8,38,83,.12);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Arial,"Noto Sans Devanagari",sans-serif;color:var(--ink);background:#f7f9fd}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+.topbar{min-height:52px;background:linear-gradient(100deg,#073a78,#032957);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:8px 2.4%;gap:12px;font-size:15px}
+.top-info,.social{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top-info span{white-space:nowrap}
+.top-icon{color:#ffca16;font-size:20px}
+.social a{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#0871d8;font-size:17px;font-weight:bold}
+.social a.whatsapp{background:#08ad3b}
+.social a.youtube{background:#e7192b}
+.navbar{background:#fff;min-height:108px;padding:10px 1.5%;display:flex;align-items:center;gap:18px;box-shadow:0 3px 12px rgba(0,0,0,.09);position:relative;z-index:3}
+.brand{display:flex;align-items:center;gap:18px;min-width:0;flex:1}
+.logo-wrap{width:98px;height:98px;flex:0 0 98px;border:4px solid #0750a8;border-bottom-color:#e51b35;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:#fff}
+.logo-wrap img{width:100%;height:100%;object-fit:contain}
+.logo-fallback{font-weight:900;color:#06478e;text-align:center;font-size:22px;line-height:1.05}
+.brand-title{font-weight:900;font-size:clamp(26px,3.4vw,54px);letter-spacing:-1.5px;line-height:1.02;color:#06458e;white-space:nowrap}
+.brand-title .red{color:#ed172b}
+.tagline{font-size:clamp(13px,1.45vw,21px);font-weight:700;font-style:italic;color:#063d83;text-align:center;margin-top:4px}
+.navlinks{display:flex;align-items:center;gap:5px;font-weight:700;white-space:nowrap}
+.navlinks a,.services-menu summary{padding:13px 12px;border-right:1px solid #d8e0ec;cursor:pointer}
+.navlinks a.active{background:#0750ad;color:white;border-radius:13px;border-right:0}
+.services-menu{position:relative}
+.services-menu summary{list-style:none}
+.services-menu summary::-webkit-details-marker{display:none}
+.services-menu[open] .dropdown{display:block}
+.dropdown{display:none;position:absolute;top:45px;left:0;background:white;min-width:220px;padding:8px;border-radius:12px;box-shadow:var(--shadow);z-index:10}
+.dropdown a{display:block;border:0;padding:10px;border-radius:8px}
+.dropdown a:hover{background:#edf4ff}
+.wa-button{background:#08a52d;color:#fff;padding:15px 24px;border-radius:40px;font-weight:800;white-space:nowrap;box-shadow:0 4px 10px #0002}
+.mobile-menu{display:none;border:0;background:#0750ad;color:#fff;padding:10px 13px;border-radius:9px}
+.hero{min-height:345px;background:linear-gradient(90deg,rgba(239,243,255,.97),rgba(255,255,255,.68) 43%,rgba(230,239,255,.9));display:grid;grid-template-columns:1.05fr 1.1fr .95fr .38fr;gap:12px;align-items:center;padding:18px 2.8%;overflow:hidden;position:relative}
+.hero:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,#f4cda0 0,transparent 33%),linear-gradient(120deg,#e7eaff,#fff 48%,#dce7ff);z-index:0}
+.hero>*{position:relative;z-index:1}
+.hero-copy h1{font-size:clamp(38px,4.3vw,66px);line-height:1.02;margin:0 0 12px;color:#07366f;font-weight:900;letter-spacing:-2px}
+.hero-copy h1 em{display:block;color:#ed172b;font-style:italic}
+.yellow-swoosh{height:7px;width:82%;border-top:7px solid #ffb600;border-radius:50%;transform:rotate(-2deg);margin:4px 0 12px}
+.hero-copy h2{font-size:clamp(18px,1.8vw,27px);margin:0 0 14px;color:#07366f}
+.checks{display:grid;gap:7px;font-size:clamp(15px,1.4vw,22px);font-weight:700}
+.checks span:before{content:"✓";display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#08a447;color:#fff;margin-right:10px;font-size:17px}
+.laptop-scene{height:290px;display:flex;align-items:center;justify-content:center;position:relative}
+.laptop{width:min(100%,430px);height:245px;transform:perspective(700px) rotateY(-8deg);position:relative}
+.screen{height:205px;border:10px solid #1a2530;border-bottom-width:15px;border-radius:14px 14px 5px 5px;background:linear-gradient(135deg,#fff,#f2f6ff);box-shadow:0 10px 18px #0003;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px}
+.screen-brand{font-family:Georgia,serif;color:#0750ad;font-size:24px;font-style:italic;font-weight:bold}
+.screen-brand small{display:block;font-size:18px;color:#123e79;margin-top:15px}
+.laptop-base{height:18px;width:112%;margin-left:-6%;background:linear-gradient(#d5dce6,#68717d);clip-path:polygon(5% 0,95% 0,100% 100%,0 100%);border-radius:0 0 12px 12px}
+.hero-services{background:#fff;border-radius:16px;box-shadow:var(--shadow);overflow:hidden;border:1px solid #cbd8ec}
+.hero-services h3{margin:0;background:#073b7b;color:#fff;text-align:center;padding:9px;font-size:clamp(19px,2vw,28px)}
+.hero-services ul{list-style:none;padding:10px 17px;margin:0;display:grid;gap:7px;font-size:clamp(13px,1.25vw,18px);font-weight:700}
+.hero-services li:before{content:"✓";display:inline-grid;place-items:center;background:#08a447;color:#fff;width:21px;height:21px;border-radius:50%;margin-right:9px}
+.support{display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;color:#07366f;font-weight:900;font-size:clamp(19px,2vw,28px)}
+.support .headphone{font-size:62px}
+.support strong{color:#ed172b;font-size:clamp(27px,2.6vw,39px)}
+.support small{background:#ffca1a;color:#111;padding:9px;border-radius:9px;transform:rotate(-5deg);margin-top:15px}
+.services-grid{padding:22px 1.5% 10px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
+.service-card{min-height:132px;border:1px solid #cbdcf6;border-radius:14px;background:linear-gradient(145deg,#fff,#f1f6ff);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px;gap:4px;transition:.2s;cursor:pointer}
+.service-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:#7aa7e8}
+.service-icon{font-size:47px;line-height:1.1}
+.service-card strong{font-size:clamp(14px,1.35vw,20px);line-height:1.18}
+.service-card:nth-child(3n+2){background:linear-gradient(145deg,#fff,#effaf8);border-color:#c5e5e6}
+.service-card:nth-child(3n){background:linear-gradient(145deg,#fff,#fff0f2);border-color:#f0d4dc}
+.service-card:nth-child(4n){background:linear-gradient(145deg,#fff,#f1f0ff)}
+.benefits{margin:7px 1.5% 16px;background:#e7efff;border:1px solid #c9dafa;border-radius:13px;display:grid;grid-template-columns:repeat(4,1fr);padding:12px 8px}
+.benefit{display:flex;align-items:center;justify-content:center;gap:13px;border-right:2px solid #0750ad;padding:0 8px}
+.benefit:last-child{border:0}
+.benefit .big{font-size:36px}
+.benefit strong{display:block;color:#07366f;font-size:19px}
+.benefit small{font-size:15px}
+.bottom-cta{margin:0;background:#07366f;color:#fff;padding:20px 2.4%;display:grid;grid-template-columns:1.1fr .9fr .8fr;align-items:center;gap:18px;border-radius:0 18px 0 0}
+.cta-title{display:flex;align-items:center;gap:18px;font-size:22px;font-weight:800}
+.cta-title .chart{font-size:42px}
+.search-order{display:flex;align-items:center;gap:10px}
+.search-order input{min-width:0;flex:1;border:0;border-radius:30px;padding:15px 20px;outline:none}
+.search-order button{border:0;border-radius:30px;background:#08a52d;color:#fff;padding:14px 18px;font-weight:800;white-space:nowrap;cursor:pointer}
+.address{text-align:right;font-weight:800;font-size:20px}
+.address small{display:block;font-weight:400;font-size:15px;margin-top:4px}
+.section{padding:45px 3%;scroll-margin-top:20px}
+.section h2{text-align:center;color:#07366f;font-size:30px;margin:0 0 10px}
+.section-intro{text-align:center;color:var(--muted);margin:0 auto 25px;max-width:720px}
+.track-panel{max-width:650px;margin:auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);display:flex;gap:10px}
+.track-panel input{flex:1;min-width:0;border:1px solid #cbd8e8;border-radius:9px;padding:13px}
+.track-panel button{border:0;border-radius:9px;background:#0750ad;color:white;padding:12px 18px;font-weight:700;cursor:pointer}
+.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1050px;margin:25px auto 0}
+.info-card{background:#fff;border:1px solid var(--line);border-radius:13px;padding:20px;text-align:center}
+.info-card .service-icon{font-size:34px}
+.contact-line{text-align:center;line-height:2}
+footer{background:#052957;color:#eaf2ff;text-align:center;padding:20px;font-size:14px}
+@media(max-width:1100px){
+ .navbar{flex-wrap:wrap}.brand{flex:1}.navlinks{order:3;width:100%;justify-content:center}.wa-button{margin-left:auto}
+ .hero{grid-template-columns:1fr 1fr .9fr}.support{display:none}
+ .services-grid{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:700px){
+ .topbar{font-size:12px;padding:8px 12px}.top-info{gap:6px}.top-info span:nth-child(3){display:none}.social{gap:5px}
+ .navbar{min-height:auto;padding:10px;gap:8px}.brand{gap:9px}.logo-wrap{width:60px;height:60px;flex-basis:60px;border-width:2px}.logo-fallback{font-size:15px}
+ .brand-title{font-size:clamp(19px,5.2vw,30px);letter-spacing:-.5px}.tagline{font-size:11px}
+ .mobile-menu{display:block}.navlinks{display:none;order:5;flex-direction:column;align-items:stretch;width:100%;background:#f5f8ff;border-radius:10px;padding:6px}
+ .navbar.menu-open .navlinks{display:flex}.navlinks a,.services-menu summary{border:0;padding:10px}.dropdown{position:static;box-shadow:none}
+ .wa-button{padding:10px 12px;font-size:12px}
+ .hero{grid-template-columns:1fr 1fr;padding:20px 14px;gap:14px}.hero-copy{grid-column:1/-1}.hero-copy h1{font-size:43px}.hero-copy h2{font-size:18px}
+ .laptop-scene{height:180px}.laptop{height:160px}.screen{height:135px;border-width:7px;font-size:16px}.screen-brand{font-size:17px}.screen-brand small{font-size:13px;margin-top:8px}
+ .laptop-base{height:12px}.hero-services h3{font-size:17px}.hero-services ul{font-size:12px;padding:9px;gap:6px}.hero-services li:before{width:17px;height:17px}
+ .services-grid{grid-template-columns:repeat(2,1fr);gap:9px;padding:14px 10px}.service-card{min-height:115px}.service-icon{font-size:38px}.service-card strong{font-size:14px}
+ .benefits{grid-template-columns:repeat(2,1fr);gap:12px;margin:5px 10px 14px}.benefit{border:0;justify-content:flex-start}.benefit .big{font-size:28px}.benefit strong{font-size:15px}.benefit small{font-size:12px}
+ .bottom-cta{grid-template-columns:1fr;padding:18px 14px}.cta-title{font-size:19px}.search-order{flex-wrap:wrap}.search-order input{width:100%;flex-basis:100%}.address{text-align:left;font-size:17px}
+ .section{padding:32px 14px}.section h2{font-size:24px}.track-panel{flex-direction:column}.info-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<!-- LOGO CHANGE: नीचे LOGO_URL में अपने logo image का direct URL डालें। -->
+<script>
+const LOGO_URL = "PASTE_YOUR_LOGO_IMAGE_URL_HERE";
+const WHATSAPP_NUMBER = "917248855446";
+const CONTACT_EMAIL = "atuljansevakendra@gmail.com";
+</script>
+
+<div class="topbar">
+  <div class="top-info">
+    <span><b class="top-icon">📍</b> Akbarpur, Basrehar, Etawah (U.P.)</span>
+    <span>|</span><span>📞 <a href="tel:7248855446">7248855446</a></span>
+    <span>|</span><span>✉️ <a href="mailto:atuljansevakendra@gmail.com">atuljansevakendra@gmail.com</a></span>
+  </div>
+  <div class="social">
+    <a class="youtube" href="#" aria-label="YouTube" title="YouTube">▶</a>
+    <a href="#" aria-label="Facebook" title="Facebook">f</a>
+    <a class="whatsapp" target="_blank" rel="noopener" href="https://wa.me/917248855446" aria-label="WhatsApp">◉</a>
+  </div>
+</div>
+
+<header class="navbar" id="navbar">
+  <div class="brand">
+    <div class="logo-wrap">
+      <img id="brandLogo" alt="Atul Jan Seva Kendra Logo" hidden>
+      <div class="logo-fallback" id="logoFallback">🌱<br>AJ SK</div>
+    </div>
+    <div>
+      <div class="brand-title">Atul Jan <span class="red">Seva Kendra</span></div>
+      <div class="tagline">Online Service Center – Your Work, Our Priority</div>
+    </div>
+  </div>
+  <button class="mobile-menu" onclick="document.getElementById('navbar').classList.toggle('menu-open')" aria-label="Open menu">☰</button>
+  <nav class="navlinks">
+    <a class="active" href="#home">⌂ Home</a>
+    <details class="services-menu">
+      <summary>Our Services⌄</summary>
+      <div class="dropdown">
+        <a href="#services">All Services</a>
+        <a href="#track">Track Order</a>
+        <a href="#contact">Contact Us</a>
+      </div>
+    </details>
+    <a href="#track">Track Order</a>
+    <a href="#about">About Us</a>
+    <a href="#contact">Contact Us</a>
+  </nav>
+  <a class="wa-button" target="_blank" rel="noopener" href="https://wa.me/917248855446?text=Namaste%20Atul%20Jan%20Seva%20Kendra%2C%20mujhe%20online%20service%20chahiye.">☘ WhatsApp Us</a>
+</header>
+
+<main>
+<section class="hero" id="home">
+  <div class="hero-copy">
+    <h1>Your Work,<em>Now Online!</em></h1>
+    <div class="yellow-swoosh"></div>
+    <h2>दस्तावेज, आवेदन और सेवाएं – अब घर बैठे पाएं!</h2>
+    <div class="checks">
+      <span>Fast Service</span><span>Secure &amp; Reliable</span><span>Pan India Support</span>
+    </div>
+  </div>
+  <div class="laptop-scene" aria-label="Online digital service laptop illustration">
+    <div class="laptop">
+      <div class="screen"><div class="screen-brand">Atul Jan Seva Kendra<small>🇮🇳 Digital India<br>Digital Seva</small></div></div>
+      <div class="laptop-base"></div>
+    </div>
+  </div>
+  <div class="hero-services">
+    <h3>🌟 हमारी मुख्य सेवाएं</h3>
+    <ul>
+      <li>Online Form &amp; Application</li><li>Resume / Biodata</li><li>PDF Editing &amp; Conversion</li>
+      <li>Hindi / English Typing</li><li>Photo Editing &amp; Resize</li><li>Data Entry &amp; Excel Work</li>
+      <li>Government Services Support</li><li>Print, Scan &amp; Lamination</li>
+    </ul>
+  </div>
+  <div class="support"><div class="headphone">🎧</div><strong>24×7</strong><div>Online<br>Support</div><small>Connect<br>Anytime<br>Anywhere</small></div>
+</section>
+
+<section class="services-grid" id="services" aria-label="Our services">
+  <a class="service-card" href="#" onclick="orderService('Online Form & Certificates');return false"><div class="service-icon">📄</div><strong>Online Form<br>&amp; Certificates</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Resume / Biodata');return false"><div class="service-icon">👨‍💼</div><strong>Resume<br>Biodata</strong></a>
+  <a class="service-card" href="#" onclick="orderService('PDF Editing & Conversion');return false"><div class="service-icon">🟥</div><strong>PDF Editing<br>&amp; Conversion</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Typing Work Hindi / English');return false"><div class="service-icon">⌨️</div><strong>Typing Work<br>(Hindi / English)</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Photo Editing & Resize');return false"><div class="service-icon">🖼️</div><strong>Photo Editing<br>&amp; Resize</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Data Entry & Excel Work');return false"><div class="service-icon">📊</div><strong>Data Entry<br>&amp; Excel Work</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Translation Hindi / English');return false"><div class="service-icon">🌐</div><strong>Translation<br>(Hindi/English)</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Print, Scan & Lamination');return false"><div class="service-icon">🖨️</div><strong>Print &amp; Scan<br>(Lamination)</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Government Services Support');return false"><div class="service-icon">🏛️</div><strong>Government<br>Services Support</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Aadhaar / PAN Assistance');return false"><div class="service-icon">🪪</div><strong>Aadhaar / PAN<br>Assistance</strong></a>
+  <a class="service-card" href="#" onclick="orderService('Ayushman Card Support');return false"><div class="service-icon">✚</div><strong>Ayushman Card<br>Support</strong></a>
+  <a class="service-card" href="#" onclick="orderService('More Services On Request');return false"><div class="service-icon">🛒</div><strong>More Services<br>(On Request)</strong></a>
+</section>
+
+<div class="benefits">
+  <div class="benefit"><span class="big">🛡️</span><div><strong>100% Secure</strong><small>Your Data is Safe</small></div></div>
+  <div class="benefit"><span class="big">⚡</span><div><strong>Fast Delivery</strong><small>On Time Service</small></div></div>
+  <div class="benefit"><span class="big">🤝</span><div><strong>Trusted Service</strong><small>Across India</small></div></div>
+  <div class="benefit"><span class="big">🎧</span><div><strong>Dedicated Support</strong><small>Always Here</small></div></div>
+</div>
+
+<section class="bottom-cta">
+  <div class="cta-title"><span class="chart">📈</span><div>Get Your Service Online<br><span style="font-weight:400">From Anywhere in India</span></div></div>
+  <div class="search-order">
+    <input id="serviceSearch" type="search" placeholder="Search Service..." aria-label="Search service">
+    <button onclick="searchService()">🔍 Search</button>
+    <span>or</span>
+    <button onclick="orderService('General Online Service')">☘ Order on WhatsApp</button>
+  </div>
+  <div class="address">📍 Atul Jan Seva Kendra<small>Akbarpur, Basrehar, Etawah (U.P.)</small></div>
+</section>
+
+<section class="section" id="track">
+  <h2>Track Your Order</h2>
+  <p class="section-intro">अपने ऑर्डर की स्थिति जानने के लिए अपना Order ID दर्ज करें। यह सुविधा फिलहाल WhatsApp के माध्यम से सहायता देती है।</p>
+  <div class="track-panel">
+    <input id="orderId" type="text" placeholder="Enter your Order ID">
+    <button onclick="trackOrder()">Track on WhatsApp</button>
+  </div>
+</section>
+
+<section class="section" id="about">
+  <h2>About Atul Jan Seva Kendra</h2>
+  <p class="section-intro">Atul Jan Seva Kendra में आपको ऑनलाइन फॉर्म, दस्तावेज़ तैयार करने, टाइपिंग, PDF, फोटो और अन्य डिजिटल सेवाओं में सहायता देने का प्रयास किया जाता है। सेवा की उपलब्धता और पात्रता संबंधित सरकारी नियमों पर निर्भर करेगी।</p>
+  <div class="info-grid">
+    <div class="info-card"><div class="service-icon">🇮🇳</div><strong>Pan India Online Support</strong><p>भारत के अलग-अलग स्थानों से ऑनलाइन सेवा अनुरोध भेजें।</p></div>
+    <div class="info-card"><div class="service-icon">🔒</div><strong>Privacy First</strong><p>दस्तावेज़ केवल आवश्यक सेवा के लिए और आपकी अनुमति से साझा करें।</p></div>
+    <div class="info-card"><div class="service-icon">💬</div><strong>Direct Assistance</strong><p>सेवा, शुल्क और समय की जानकारी WhatsApp पर प्राप्त करें।</p></div>
+  </div>
+</section>
+
+<section class="section" id="contact">
+  <h2>Contact Us</h2>
+  <p class="section-intro">सेवा की जानकारी या ऑर्डर के लिए संपर्क करें।</p>
+  <div class="contact-line">
+    <b>Atul Jan Seva Kendra</b><br>
+    📍 Akbarpur, Basrehar, Etawah (U.P.)<br>
+    📞 <a href="tel:7248855446">7248855446</a><br>
+    ✉️ <a href="mailto:atuljansevakendra@gmail.com">atuljansevakendra@gmail.com</a><br>
+    <a class="wa-button" target="_blank" rel="noopener" href="https://wa.me/917248855446">WhatsApp पर संपर्क करें</a>
+  </div>
+</section>
+</main>
+
+<footer>© <span id="year"></span> Atul Jan Seva Kendra. All Rights Reserved.</footer>
+
+<script>
+function orderService(service){
+  const message = "Namaste Atul Jan Seva Kendra, mujhe " + service + " ki service chahiye. Kripya fees aur process batayein.";
+  window.open("https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(message), "_blank");
+}
+function searchService(){
+  const value = document.getElementById("serviceSearch").value.trim();
+  if(!value){document.getElementById("serviceSearch").focus();return;}
+  orderService(value);
+}
+function trackOrder(){
+  const id = document.getElementById("orderId").value.trim();
+  if(!id){alert("कृपया Order ID दर्ज करें।");return;}
+  const message = "Namaste, mere order ki status batayein. Order ID: " + id;
+  window.open("https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(message), "_blank");
+}
+document.getElementById("year").textContent = new Date().getFullYear();
+if(LOGO_URL && LOGO_URL !== "PASTE_YOUR_LOGO_IMAGE_URL_HERE"){
+  const logo = document.getElementById("brandLogo");
+  logo.src = LOGO_URL;
+  logo.hidden = false;
+  logo.onload = () => document.getElementById("logoFallback").style.display = "none";
+  logo.onerror = () => { logo.hidden = true; };
+}
+</script>
+</body>
+</html>
